@@ -20,13 +20,14 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import Image from "next/image";
 
 const menuItems = [
   { title: "New Chat", icon: PlusIcon, href: "/" },
   { title: "Search", icon: SearchIcon, href: "/search" },
 ];
 
-export function AppSidebar() {
+export function ConversationSidebar() {
   const pathname = usePathname();
 
   return (
@@ -34,9 +35,17 @@ export function AppSidebar() {
       <SidebarHeader>
         <SidebarMenuItem>
           <SidebarMenuButton asChild className="gap-x-4 h-10 px-4">
-            <Link href="/" prefetch>
-              <MessageSquare className="size-6" />
-              <span className="font-semibold text-sm">PersuAI</span>
+            <Link href="/public" prefetch>
+              <Image
+                src="/logo.svg"
+                alt="PersuAI logo"
+                width={24}
+                height={24}
+              />
+              <span className="font-bold tracking-wider">
+                <span className="text-black">PERSU</span>
+                <span className="text-gray-600">AI</span>
+              </span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

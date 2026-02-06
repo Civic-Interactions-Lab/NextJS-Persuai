@@ -1,6 +1,7 @@
 import React from "react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { ConversationSidebar } from "@/features/conversation/components/conversation-sidebar";
+import { ConversationHeader } from "@/features/conversation/components/conversation-header";
 
 export default function MainLayout({
   children,
@@ -9,14 +10,12 @@ export default function MainLayout({
 }) {
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          <div className="p-4">
-            <SidebarTrigger />
-          </div>
-          {children}
-        </main>
+      <div className="flex h-screen w-full overflow-hidden">
+        <ConversationSidebar />
+        <div className="flex flex-col flex-1 min-w-0">
+          <ConversationHeader />
+          <main className="flex-1 overflow-auto">{children}</main>
+        </div>
       </div>
     </SidebarProvider>
   );
