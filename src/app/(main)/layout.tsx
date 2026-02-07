@@ -12,7 +12,7 @@ export default function MainLayout({
     <SidebarProvider>
       <div className="flex h-screen w-full overflow-hidden">
         <ConversationSidebar />
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex flex-col flex-1">
           <ConversationHeader />
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
