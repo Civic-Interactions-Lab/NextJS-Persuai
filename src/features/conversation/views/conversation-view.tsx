@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CopyIcon, LoaderIcon } from "lucide-react";
+import { useQuery, useMutation } from "convex/react";
 
 import {
   Conversation,
@@ -24,91 +25,46 @@ import {
   PromptInputTools,
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input";
-
-type MessageType = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  status?: "processing" | "completed";
-};
+import { ConversationId } from "../../../../convex/types";
+import { api } from "../../../../convex/_generated/api";
 
 const ConversationView = () => {
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<MessageType[]>([]);
+  const [conversationId, setConversationId] = useState<ConversationId | null>(
+    null,
+  );
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const createConversation = useMutation(api.conversations.createConversation);
+  const messages = useQuery(
+    api.messages.getMessages,
+    conversationId ? { conversationId } : "skip",
+  );
+
+  // Create conversation on mount
+  useEffect(() => {
+    createConversation({ userId: "guest" }).then(setConversationId);
+  }, [createConversation]);
+
   const handleSubmit = async (message: PromptInputMessage) => {
-    if (!message.text.trim()) return;
+    if (!message.text.trim() || !conversationId) return;
 
-    // Add user message
-    const userMessage: MessageType = {
-      id: Date.now().toString(),
-      role: "user",
-      content: message.text,
-      status: "completed",
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsProcessing(true);
 
-    // Add assistant processing message
-    const assistantMessage: MessageType = {
-      id: (Date.now() + 1).toString(),
-      role: "assistant",
-      content: "",
-      status: "processing",
-    };
-
-    setMessages((prev) => [...prev, assistantMessage]);
-
     try {
-      // Call the API
-      const response = await fetch("/api/message", {
+      await fetch("/api/message", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage].map((msg) => ({
-            role: msg.role,
-            content: msg.content,
-          })),
+          conversationId,
+          message: message.text,
         }),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to get response");
-      }
-
-      const data = await response.json();
-
-      // Update assistant message with response
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === assistantMessage.id
-            ? {
-                ...msg,
-                content: data.response,
-                status: "completed" as const,
-              }
-            : msg,
-        ),
-      );
     } catch (error) {
       console.error("Error:", error);
-      // Update with error message
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === assistantMessage.id
-            ? {
-                ...msg,
-                content: "Sorry, something went wrong. Please try again.",
-                status: "completed" as const,
-              }
-            : msg,
-        ),
-      );
     } finally {
       setIsProcessing(false);
     }
@@ -118,8 +74,8 @@ const ConversationView = () => {
     <div className="flex flex-col h-full max-w-4xl mx-auto">
       <Conversation className="flex-1">
         <ConversationContent className="hide-scrollbar">
-          {messages.length === 0 && (
-            <div className="flex items-center justify-center h-full text-muted-foreground max-w-150 mx-auto">
+          {!messages || messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
               <div className="text-center space-y-2">
                 <h2 className="text-2xl font-bold">
                   <span className="text-black">PERSU</span>
@@ -128,36 +84,41 @@ const ConversationView = () => {
                 <p>Start a conversation to persuade the AI</p>
               </div>
             </div>
+          ) : (
+            <>
+              {messages.map((message, index) => (
+                <Message key={message._id} from={message.role}>
+                  <MessageContent>
+                    <MessageResponse>{message.content}</MessageResponse>
+                  </MessageContent>
+                  {message.role === "assistant" &&
+                    index === messages.length - 1 &&
+                    !isProcessing && (
+                      <MessageActions>
+                        <MessageAction
+                          onClick={() => {
+                            navigator.clipboard.writeText(message.content);
+                          }}
+                          label="Copy"
+                        >
+                          <CopyIcon className="size-3" />
+                        </MessageAction>
+                      </MessageActions>
+                    )}
+                </Message>
+              ))}
+              {isProcessing && (
+                <Message from="assistant">
+                  <MessageContent>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <LoaderIcon className="size-4 animate-spin" />
+                      <span>Thinking...</span>
+                    </div>
+                  </MessageContent>
+                </Message>
+              )}
+            </>
           )}
-
-          {messages.map((message, index) => (
-            <Message key={message.id} from={message.role}>
-              <MessageContent>
-                {message.status === "processing" ? (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <LoaderIcon className="size-4 animate-spin" />
-                    <span>Thinking...</span>
-                  </div>
-                ) : (
-                  <MessageResponse>{message.content}</MessageResponse>
-                )}
-              </MessageContent>
-              {message.role === "assistant" &&
-                message.status === "completed" &&
-                index === messages.length - 1 && (
-                  <MessageActions>
-                    <MessageAction
-                      onClick={() => {
-                        navigator.clipboard.writeText(message.content);
-                      }}
-                      label="Copy"
-                    >
-                      <CopyIcon className="size-3" />
-                    </MessageAction>
-                  </MessageActions>
-                )}
-            </Message>
-          ))}
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
