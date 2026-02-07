@@ -62,31 +62,64 @@ const ConversationView = () => {
 
     setMessages((prev) => [...prev, assistantMessage]);
 
-    // TODO: Replace with actual API call to your LLM
-    // Simulating API call
-    setTimeout(() => {
+    try {
+      // Call the API
+      const response = await fetch("/api/message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: [...messages, userMessage].map((msg) => ({
+            role: msg.role,
+            content: msg.content,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to get response");
+      }
+
+      const data = await response.json();
+
+      // Update assistant message with response
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === assistantMessage.id
             ? {
                 ...msg,
-                content:
-                  "This is a placeholder response. Connect your LLM API here.",
+                content: data.response,
                 status: "completed" as const,
               }
             : msg,
         ),
       );
+    } catch (error) {
+      console.error("Error:", error);
+      // Update with error message
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMessage.id
+            ? {
+                ...msg,
+                content: "Sorry, something went wrong. Please try again.",
+                status: "completed" as const,
+              }
+            : msg,
+        ),
+      );
+    } finally {
       setIsProcessing(false);
-    }, 1500);
+    }
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full max-w-4xl mx-auto">
       <Conversation className="flex-1">
-        <ConversationContent>
+        <ConversationContent className="hide-scrollbar">
           {messages.length === 0 && (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
+            <div className="flex items-center justify-center h-full text-muted-foreground max-w-150 mx-auto">
               <div className="text-center space-y-2">
                 <h2 className="text-2xl font-bold">
                   <span className="text-black">PERSU</span>
@@ -129,7 +162,7 @@ const ConversationView = () => {
         <ConversationScrollButton />
       </Conversation>
 
-      <div className="p-4 border-t">
+      <div className="p-4 pb-8">
         <PromptInput onSubmit={handleSubmit}>
           <PromptInputBody>
             <PromptInputTextarea
