@@ -1,7 +1,7 @@
 import React from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { ConversationSidebar } from "@/features/conversation/components/conversation-sidebar";
-import { ConversationHeader } from "@/features/conversation/components/conversation-header";
+import ConversationSidebar from "@/features/conversation/components/conversation-sidebar";
+import ConversationHeader from "@/features/conversation/components/conversation-header";
 
 export default function MainLayout({
   children,

@@ -1,6 +1,6 @@
 import React from "react";
-import ConversationView from "@/features/conversation/views/conversation-view";
+import NewConversationView from "@/features/conversation/views/new-conversation-view";
 
-export default function ConversationPage() {
-  return <ConversationView />;
+export default function NewConversation() {
+  return <NewConversationView />;
 }

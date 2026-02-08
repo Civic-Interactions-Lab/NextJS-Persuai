@@ -18,6 +18,13 @@ export const createMessage = mutation({
     conversationId: v.id("conversations"),
     role: v.union(v.literal("user"), v.literal("assistant")),
     content: v.string(),
+    status: v.optional(
+      v.union(
+        v.literal("processing"),
+        v.literal("completed"),
+        v.literal("error"),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
     const conversation = await ctx.db.get(args.conversationId);
@@ -36,7 +43,56 @@ export const createMessage = mutation({
       conversationId: args.conversationId,
       role: args.role,
       content: args.content,
+      status: args.status ?? "processing",
       updatedAt: now,
     });
+  },
+});
+
+export const updateMessage = mutation({
+  args: {
+    id: v.id("messages"),
+    content: v.optional(v.string()),
+    status: v.optional(
+      v.union(
+        v.literal("processing"),
+        v.literal("completed"),
+        v.literal("error"),
+      ),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get(args.id);
+
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    const now = Date.now();
+
+    const updates: {
+      content?: string;
+      status?: "processing" | "completed" | "error";
+      updatedAt: number;
+    } = {
+      updatedAt: now,
+    };
+
+    if (args.content !== undefined) {
+      updates.content = args.content;
+    }
+
+    if (args.status !== undefined) {
+      updates.status = args.status;
+    }
+
+    await ctx.db.patch(args.id, updates);
+
+    // Only update once using the message's conversationId
+    await ctx.db.patch(message.conversationId, {
+      updatedAt: now,
+    });
+
+    return args.id;
   },
 });

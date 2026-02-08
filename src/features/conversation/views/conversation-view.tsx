@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { CopyIcon, LoaderIcon } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { CopyIcon, LoaderIcon, AlertCircleIcon } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 
 import {
@@ -25,48 +25,72 @@ import {
   PromptInputTools,
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input";
-import { ConversationId } from "../../../../convex/types";
 import { api } from "../../../../convex/_generated/api";
+import { ConversationId } from "../../../../convex/types";
+import { useRouter } from "next/navigation";
 
-const ConversationView = () => {
+interface ConversationViewProps {
+  conversationId: ConversationId;
+}
+
+const ConversationView = ({ conversationId }: ConversationViewProps) => {
+  const router = useRouter();
   const [input, setInput] = useState("");
-  const [conversationId, setConversationId] = useState<ConversationId | null>(
-    null,
-  );
-  const [isProcessing, setIsProcessing] = useState(false);
 
-  const createConversation = useMutation(api.conversations.createConversation);
-  const messages = useQuery(
-    api.messages.getMessages,
-    conversationId ? { conversationId } : "skip",
-  );
+  const conversation = useQuery(api.conversations.getConversationById, {
+    id: conversationId,
+  });
 
-  // Create conversation on mount
+  const createMessage = useMutation(api.messages.createMessage);
+
   useEffect(() => {
-    createConversation({ userId: "guest" }).then(setConversationId);
-  }, [createConversation]);
+    if (conversation === null) {
+      router.push("/");
+    }
+  }, [conversation, router]);
+
+  const messages = useQuery(api.messages.getMessages, { conversationId });
+
+  const isProcessing = messages?.some((msg) => msg.status === "processing");
 
   const handleSubmit = async (message: PromptInputMessage) => {
-    if (!message.text.trim() || !conversationId) return;
+    if (!message.text.trim()) return;
 
     setInput("");
-    setIsProcessing(true);
 
     try {
-      await fetch("/api/message", {
+      // Create user message with status completed
+      await createMessage({
+        conversationId,
+        role: "user",
+        content: message.text.trim(),
+        status: "completed",
+      });
+
+      // Create assistant message with status processing
+      const assistantMessageId = await createMessage({
+        conversationId,
+        role: "assistant",
+        content: "",
+        status: "processing",
+      });
+
+      // Send request to generate AI response in background
+      fetch("/api/message", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           conversationId,
-          message: message.text,
+          assistantMessageId,
+          message: message.text.trim(),
         }),
+      }).catch((error) => {
+        console.error("Error:", error);
       });
     } catch (error) {
       console.error("Error:", error);
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -74,8 +98,15 @@ const ConversationView = () => {
     <div className="flex flex-col h-full max-w-4xl mx-auto">
       <Conversation className="flex-1">
         <ConversationContent className="hide-scrollbar">
-          {!messages || messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
+          {messages === undefined ? (
+            <div className="flex items-center justify-center pt-[30vh] text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <LoaderIcon className="size-5 animate-spin" />
+                <span>Loading conversation...</span>
+              </div>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex items-center justify-center pt-[30vh] text-muted-foreground">
               <div className="text-center space-y-2">
                 <h2 className="text-2xl font-bold">
                   <span className="text-black">PERSU</span>
@@ -89,11 +120,23 @@ const ConversationView = () => {
               {messages.map((message, index) => (
                 <Message key={message._id} from={message.role}>
                   <MessageContent>
-                    <MessageResponse>{message.content}</MessageResponse>
+                    {message.status === "processing" ? (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <LoaderIcon className="size-4 animate-spin" />
+                        <span>Thinking...</span>
+                      </div>
+                    ) : message.status === "error" ? (
+                      <div className="flex items-center gap-2 text-destructive">
+                        <AlertCircleIcon className="size-4" />
+                        <span>Failed to generate response</span>
+                      </div>
+                    ) : (
+                      <MessageResponse>{message.content}</MessageResponse>
+                    )}
                   </MessageContent>
                   {message.role === "assistant" &&
-                    index === messages.length - 1 &&
-                    !isProcessing && (
+                    message.status === "completed" &&
+                    index === messages.length - 1 && (
                       <MessageActions>
                         <MessageAction
                           onClick={() => {
@@ -107,16 +150,6 @@ const ConversationView = () => {
                     )}
                 </Message>
               ))}
-              {isProcessing && (
-                <Message from="assistant">
-                  <MessageContent>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <LoaderIcon className="size-4 animate-spin" />
-                      <span>Thinking...</span>
-                    </div>
-                  </MessageContent>
-                </Message>
-              )}
             </>
           )}
         </ConversationContent>
