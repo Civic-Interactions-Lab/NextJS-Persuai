@@ -2,20 +2,15 @@
 
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
-import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
-import { ConversationId } from "../../../../convex/types";
+import { useGetConversationByUid } from "@/features/conversation/hooks/use-conversations";
 
 const ConversationHeader = () => {
   const pathname = usePathname();
 
-  const conversationId =
+  const uid =
     pathname.startsWith("/") && pathname.length > 1 ? pathname.slice(1) : null;
 
-  const conversation = useQuery(
-    api.conversations.getConversationById,
-    conversationId ? { id: conversationId as ConversationId } : "skip",
-  );
+  const conversation = useGetConversationByUid(uid);
 
   return (
     <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-4">
