@@ -143,7 +143,7 @@ const ConversationSidebar = () => {
           <SidebarGroup>
             <SidebarGroupLabel>Recent Conversations</SidebarGroupLabel>
             {!isCollapsed && (
-              <ScrollArea className="h-100 pr-3 mt-3">
+              <ScrollArea className="h-100 mt-3">
                 <SidebarGroupContent>
                   <SidebarMenu>
                     {filteredConversations?.map((conversation) => (
@@ -151,11 +151,14 @@ const ConversationSidebar = () => {
                         <SidebarMenuButton
                           tooltip={conversation.title}
                           isActive={pathname === `/${conversation._id}`}
-                          className="gap-x-4 overflow-hidden"
                           asChild
                         >
-                          <Link href={`/${conversation._id}`} prefetch>
-                            <span className="truncate overflow-hidden whitespace-nowrap">
+                          <Link
+                            href={`/${conversation._id}`}
+                            prefetch
+                            className="flex w-full max-w-56"
+                          >
+                            <span className="truncate">
                               {conversation.title}
                             </span>
                           </Link>

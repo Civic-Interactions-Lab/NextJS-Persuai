@@ -9,7 +9,13 @@ export default defineSchema({
   conversations: defineTable({
     uid: v.string(),
     title: v.string(),
-    topic: v.string(),
+    topic: v.optional(v.string()),
+    topicPrompt: v.optional(v.string()),
+    agentId: v.optional(v.string()),
+    agentName: v.optional(v.string()),
+    agentPosition: v.optional(
+      v.union(v.literal("agree"), v.literal("disagree"), v.literal("neutral")),
+    ),
     surveyResponseId: v.id("surveyResponses"),
     updatedAt: v.number(),
   })
@@ -25,7 +31,9 @@ export default defineSchema({
       v.literal("completed"),
       v.literal("error"),
     ),
-    isAgreed: v.optional(v.boolean()),
+    agreement: v.optional(
+      v.union(v.literal("agree"), v.literal("disagree"), v.literal("neutral")),
+    ),
     updatedAt: v.number(),
   }).index("by_conversation", ["conversationId"]),
 });

@@ -4,23 +4,12 @@ import { google } from "@ai-sdk/google";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../convex/_generated/api";
 import { ConversationId, MessageId } from "../../../../convex/types";
+import {
+  getSystemPrompt,
+  TITLE_GENERATION_PROMPT,
+} from "@/features/conversation/constants/ai-prompts";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-
-const PERSUASION_PROMPT = `You are an AI debate partner in a persuasion game. Your role is to take a position on topics and defend it with well-reasoned arguments.
-
-Rules:
-1. When the user presents a topic or argument, quickly decide whether to AGREE or DISAGREE
-2. Take the position that would make for the most interesting debate
-3. Defend your position with clear, logical reasoning
-4. Be respectful but firm in your stance
-5. Acknowledge good points from the user, but don't easily change your mind
-6. If the user presents truly compelling evidence or reasoning, you may concede specific points
-7. Keep responses conversational but substantive
-
-Your goal: Make the user work to persuade you, but be intellectually honest.`;
-
-const TITLE_GENERATION_PROMPT = `Generate a brief, engaging title (max 6 words) for this debate topic. Only return the title, nothing else.`;
 
 export async function POST(request: Request) {
   try {
@@ -36,16 +25,33 @@ export async function POST(request: Request) {
       );
     }
 
+    const conversation = await convex.query(
+      api.conversations.getConversationById,
+      {
+        id: conversationId as ConversationId,
+      },
+    );
+
+    if (!conversation) {
+      return NextResponse.json(
+        { error: "Conversation not found" },
+        { status: 404 },
+      );
+    }
+
+    const agentPosition = conversation.agentPosition || "neutral";
+    const topicPrompt = conversation.topicPrompt;
+
     // Get all messages for context
     const messages = await convex.query(api.messages.getMessages, {
       conversationId: conversationId as ConversationId,
     });
 
     try {
-      // Generate AI response
+      // Generate AI response with position-specific prompt
       const { text } = await generateText({
         model: google("gemini-2.5-flash"),
-        system: PERSUASION_PROMPT,
+        system: getSystemPrompt(agentPosition, topicPrompt),
         messages: messages.map((msg) => ({
           role: msg.role,
           content: msg.content,

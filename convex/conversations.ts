@@ -56,3 +56,28 @@ export const updateTitle = mutation({
     });
   },
 });
+
+export const updateTopicAndAgent = mutation({
+  args: {
+    id: v.id("conversations"),
+    topic: v.string(),
+    topicPrompt: v.string(),
+    agentId: v.string(),
+    agentName: v.string(),
+    agentPosition: v.union(
+      v.literal("agree"),
+      v.literal("disagree"),
+      v.literal("neutral"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, {
+      topic: args.topic,
+      topicPrompt: args.topicPrompt,
+      agentId: args.agentId,
+      agentName: args.agentName,
+      agentPosition: args.agentPosition,
+      updatedAt: Date.now(),
+    });
+  },
+});

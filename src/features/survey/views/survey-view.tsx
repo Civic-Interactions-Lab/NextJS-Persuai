@@ -24,31 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const surveyQuestions = [
-  {
-    name: "name",
-    label: "What is your name?",
-    type: "text",
-    placeholder: "Enter your name",
-    required: true,
-  },
-  {
-    name: "background",
-    label: "What is your background?",
-    type: "radio",
-    required: true,
-    options: ["Computer Science", "Engineering", "Business", "Design", "Other"],
-  },
-  {
-    name: "experience",
-    label: "How many years of experience do you have?",
-    type: "select",
-    placeholder: "Select your experience level",
-    required: true,
-    options: ["0-1 years", "1-3 years", "3-5 years", "5-10 years", "10+ years"],
-  },
-] as const;
+import { surveyQuestions } from "@/features/survey/constants/survey-questions";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -83,20 +60,19 @@ const SurveyView = () => {
       const { uid, conversationId } = await submitSurvey({
         responses,
         title: "New Conversation",
-        topic: "",
       });
 
       setCompletionData({ uid, conversationId });
       setIsCompleted(true);
     } catch (error) {
       console.error("Failed to save survey:", error);
-      alert("Failed to save survey. Please try again.");
+      toast.error("Failed to save survey. Please try again.");
     }
   };
 
   if (isCompleted && completionData) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-start justify-center h-full pt-[30vh]">
         <div className="w-full max-w-md mx-4 space-y-6 rounded-lg border bg-card p-8 shadow-lg">
           <div className="space-y-2 text-center">
             <h2 className="text-2xl font-semibold tracking-tight">
