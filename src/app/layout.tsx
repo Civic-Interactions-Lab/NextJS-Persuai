@@ -37,7 +37,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <ConvexClientProvider>{children}</ConvexClientProvider>
-          <Toaster />
+          <Toaster position="top-right" />
         </ThemeProvider>
       </body>
     </html>

@@ -96,3 +96,28 @@ export const updateMessage = mutation({
     return args.id;
   },
 });
+
+export const updateMessageAgreement = mutation({
+  args: {
+    id: v.id("messages"),
+    agreement: v.union(
+      v.literal("agree"),
+      v.literal("disagree"),
+      v.literal("neutral"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get(args.id);
+
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    await ctx.db.patch(args.id, {
+      agreement: args.agreement,
+      updatedAt: Date.now(),
+    });
+
+    return args.id;
+  },
+});

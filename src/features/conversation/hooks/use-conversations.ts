@@ -2,13 +2,12 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { ConversationId } from "../../../../convex/types";
 
-// Queries
 export const useGetConversations = () => {
   return useQuery(api.conversations.getConversations);
 };
 
-export const useGetConversationById = (id: ConversationId) => {
-  return useQuery(api.conversations.getConversationById, { id });
+export const useGetConversationById = (id: ConversationId | null) => {
+  return useQuery(api.conversations.getConversationById, id ? { id } : "skip");
 };
 
 export const useGetConversationByUid = (uid: string | null) => {
@@ -24,4 +23,8 @@ export const useCreateConversation = () => {
 
 export const useUpdateTitle = () => {
   return useMutation(api.conversations.updateTitle);
+};
+
+export const useUpdateTopicAndAgent = () => {
+  return useMutation(api.conversations.updateTopicAndAgent);
 };

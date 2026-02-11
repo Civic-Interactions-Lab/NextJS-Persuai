@@ -14,18 +14,14 @@ export const submitResponse = mutation({
   args: {
     responses: v.string(),
     title: v.optional(v.string()),
-    topic: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // 1. Create survey response entry
     const surveyResponseId = await ctx.db.insert("surveyResponses", {
       responses: args.responses,
     });
 
-    // 2. Generate unique UID
     let uid = generateUid();
 
-    // Check for collision with existing conversations
     let existing = await ctx.db
       .query("conversations")
       .withIndex("by_uid", (q) => q.eq("uid", uid))
@@ -39,11 +35,9 @@ export const submitResponse = mutation({
         .first();
     }
 
-    // 3. Create conversation with uid and survey reference
     const conversationId = await ctx.db.insert("conversations", {
       uid,
       title: args.title || "New Conversation",
-      topic: args.topic || "",
       surveyResponseId,
       updatedAt: Date.now(),
     });
