@@ -56,3 +56,10 @@ export const getResponseById = query({
     return await ctx.db.get(args.id);
   },
 });
+
+export const getAllResponses = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("surveyResponses").collect();
+  },
+});

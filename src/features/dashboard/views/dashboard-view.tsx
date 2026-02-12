@@ -8,6 +8,7 @@ import {
 } from "@/features/dashboard/components/conversation-stats-cards";
 import MostPickedTopicSection from "@/features/dashboard/components/most-picked-topic-section";
 import RecentConversationsList from "@/features/dashboard/components/recent-conversations-list";
+import SurveyResultsSection from "@/features/dashboard/components/survey-results-section";
 
 const DashboardView = () => {
   const conversations = useGetConversations();
@@ -41,6 +42,8 @@ const DashboardView = () => {
           <MostPickedTopicSection />
           <RecentConversationsList />
         </div>
+
+        <SurveyResultsSection />
       </div>
 
       {/* lg layout: Left (Cards + Most Picked) | Right (Recent) */}
@@ -51,6 +54,8 @@ const DashboardView = () => {
             <WeeklyTrendingCard />
           </div>
           <MostPickedTopicSection />
+
+          <SurveyResultsSection />
         </div>
 
         <div className="lg:col-span-1">
