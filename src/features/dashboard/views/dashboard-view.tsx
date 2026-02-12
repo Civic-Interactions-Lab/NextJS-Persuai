@@ -2,6 +2,12 @@
 
 import { useGetConversations } from "@/features/conversation/hooks/use-conversations";
 import { Loader2 } from "lucide-react";
+import {
+  TotalConversationsCard,
+  WeeklyTrendingCard,
+} from "@/features/dashboard/components/conversation-stats-cards";
+import MostPickedTopicSection from "@/features/dashboard/components/most-picked-topic-section";
+import RecentConversationsList from "@/features/dashboard/components/recent-conversations-list";
 
 const DashboardView = () => {
   const conversations = useGetConversations();
@@ -14,75 +20,42 @@ const DashboardView = () => {
     );
   }
 
-  const totalConversations = conversations.length;
-  const conversationsToday = conversations.filter((conv) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return conv._creationTime >= today.getTime();
-  }).length;
-
-  const conversationsThisWeek = conversations.filter((conv) => {
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    return conv._creationTime >= weekAgo.getTime();
-  }).length;
-
-  const recentConversations = conversations.slice(0, 5);
-
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Header */}
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
         <p className="text-muted-foreground">
-          Overview of your conversations and activity
+          Overview of conversations and activity
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <div className="rounded-lg border bg-card p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            Total Conversations
-          </h3>
-          <p className="text-3xl font-bold mt-2">{totalConversations}</p>
+      {/* md layout: Cards full width, then Most Picked | Recent side-by-side */}
+      <div className="lg:hidden space-y-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          <TotalConversationsCard />
+          <WeeklyTrendingCard />
         </div>
 
-        <div className="rounded-lg border bg-card p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            This Week
-          </h3>
-          <p className="text-3xl font-bold mt-2">{conversationsThisWeek}</p>
-        </div>
-
-        <div className="rounded-lg border bg-card p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">Today</h3>
-          <p className="text-3xl font-bold mt-2">{conversationsToday}</p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <MostPickedTopicSection />
+          <RecentConversationsList />
         </div>
       </div>
 
-      <div className="rounded-lg border bg-card p-6">
-        <h3 className="font-semibold mb-4">Recent Conversations</h3>
-        {recentConversations.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No conversations yet</p>
-        ) : (
-          <div className="space-y-3">
-            {recentConversations.map((conversation) => (
-              <div
-                key={conversation._id}
-                className="flex items-center justify-between text-sm border-b pb-3 last:border-0 last:pb-0"
-              >
-                <div className="space-y-1">
-                  <p className="font-medium">{conversation.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    UID: {conversation.uid}
-                  </p>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(conversation._creationTime).toLocaleDateString()}
-                </span>
-              </div>
-            ))}
+      {/* lg layout: Left (Cards + Most Picked) | Right (Recent) */}
+      <div className="hidden lg:grid lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 space-y-4">
+          <div className="grid gap-4 grid-cols-2">
+            <TotalConversationsCard />
+            <WeeklyTrendingCard />
           </div>
-        )}
+          <MostPickedTopicSection />
+        </div>
+
+        <div className="lg:col-span-1">
+          <RecentConversationsList />
+        </div>
       </div>
     </div>
   );

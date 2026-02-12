@@ -15,27 +15,27 @@ const DashboardHeader = () => {
   };
 
   return (
-    <header className="border-b">
-      <div className="flex items-center justify-between px-6 py-4">
-        <Link href="/">
-          <Logo size={28} />
-        </Link>
+    <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-6">
+      <Link href="/">
+        <Logo size={28} />
+      </Link>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={toggleTheme}>
-            <Sun className="size-4 mr-2 block dark:hidden" />
-            <Moon className="size-4 mr-2 hidden dark:block" />
-            <span className="block dark:hidden">Dark Mode</span>
-            <span className="hidden dark:block">Light Mode</span>
+      <div className="flex-1" />
+
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={toggleTheme}>
+          <Sun className="size-4 mr-2 block dark:hidden" />
+          <Moon className="size-4 mr-2 hidden dark:block" />
+          <span className="block dark:hidden">Dark Mode</span>
+          <span className="hidden dark:block">Light Mode</span>
+        </Button>
+
+        <form action={logout}>
+          <Button type="submit" variant="outline" size="sm">
+            <LogOut className="size-4 mr-2" />
+            Logout
           </Button>
-
-          <form action={logout}>
-            <Button type="submit" variant="outline" size="sm">
-              <LogOut className="size-4 mr-2" />
-              Logout
-            </Button>
-          </form>
-        </div>
+        </form>
       </div>
     </header>
   );

@@ -20,7 +20,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_uid", ["uid", "updatedAt"])
-    .index("by_survey", ["surveyResponseId", "updatedAt"]),
+    .index("by_survey", ["surveyResponseId", "updatedAt"])
+    .index("by_updatedAt", ["updatedAt"]),
 
   messages: defineTable({
     conversationId: v.id("conversations"),

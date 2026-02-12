@@ -97,7 +97,9 @@ const SurveyView = () => {
             </div>
 
             <Button
-              onClick={() => router.push(`/${completionData.conversationId}`)}
+              onClick={() =>
+                router.push(`/conversations/${completionData.conversationId}`)
+              }
               className="w-full"
             >
               Continue

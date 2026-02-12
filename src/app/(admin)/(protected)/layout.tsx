@@ -14,9 +14,9 @@ export default async function ProtectedLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex flex-col h-screen w-full overflow-hidden">
       <DashboardHeader />
-      <main className="p-6">{children}</main>
+      <main className="flex-1 overflow-auto p-6">{children}</main>
     </div>
   );
 }
