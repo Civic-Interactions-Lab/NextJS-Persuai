@@ -97,7 +97,9 @@ const SurveyView = () => {
             </div>
 
             <Button
-              onClick={() => router.push(`/${completionData.conversationId}`)}
+              onClick={() =>
+                router.push(`/conversations/${completionData.conversationId}`)
+              }
               className="w-full"
             >
               Continue
@@ -110,7 +112,7 @@ const SurveyView = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto px-8 lg:px-4 py-12">
+      <div className="max-w-2xl mx-auto px-8 lg:px-4 py-6">
         {/* Header */}
         <div className="mb-8 space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Welcome Survey</h1>

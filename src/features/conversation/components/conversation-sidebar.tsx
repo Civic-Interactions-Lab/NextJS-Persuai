@@ -44,10 +44,6 @@ const ConversationSidebar = () => {
     router.push("/survey");
   };
 
-  const handleConsentCancel = () => {
-    setDialogOpen(false);
-  };
-
   const toggleSearch = () => {
     setIsSearching(!isSearching);
     if (isSearching) {
@@ -150,11 +146,13 @@ const ConversationSidebar = () => {
                       <SidebarMenuItem key={conversation._id}>
                         <SidebarMenuButton
                           tooltip={conversation.title}
-                          isActive={pathname === `/${conversation._id}`}
+                          isActive={
+                            pathname === `/conversations/${conversation._id}`
+                          }
                           asChild
                         >
                           <Link
-                            href={`/${conversation._id}`}
+                            href={`/conversations/${conversation._id}`}
                             prefetch
                             className="flex w-full max-w-56"
                           >
