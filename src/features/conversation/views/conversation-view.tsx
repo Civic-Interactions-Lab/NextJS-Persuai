@@ -303,10 +303,6 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
                 <div className="text-center mb-8">
                   <div className="flex items-center justify-center gap-3 mb-3">
                     <Logo size={30} />
-                    <h1 className="text-3xl font-bold tracking-wider">
-                      <span className="text-black">PERSU</span>
-                      <span className="text-gray-400">AI</span>
-                    </h1>
                   </div>
                   <p className="text-muted-foreground">
                     Choose a topic and AI agent to start your debate
