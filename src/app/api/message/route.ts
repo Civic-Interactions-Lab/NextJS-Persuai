@@ -70,7 +70,7 @@ export async function POST(request: Request) {
         const { text: generatedTitle } = await generateText({
           model: google("gemini-2.5-flash"),
           system: TITLE_GENERATION_PROMPT,
-          prompt: message,
+          prompt: `Topic: ${topicPrompt}\n\nUser's opening statement: ${message}`,
         });
 
         await convex.mutation(api.conversations.updateTitle, {

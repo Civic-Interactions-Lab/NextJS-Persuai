@@ -1,20 +1,21 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-// Not really need this
 export const createConversation = mutation({
   args: {
-    uid: v.string(),
+    externalId: v.string(),
+    externalStudyId: v.optional(v.string()),
+    externalSessionId: v.optional(v.string()),
     title: v.string(),
-    topic: v.string(),
-    surveyResponseId: v.id("surveyResponses"),
+    topic: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("conversations", {
-      uid: args.uid,
+      externalId: args.externalId,
+      externalStudyId: args.externalStudyId,
+      externalSessionId: args.externalSessionId,
       title: args.title,
       topic: args.topic,
-      surveyResponseId: args.surveyResponseId,
       updatedAt: Date.now(),
     });
   },
@@ -38,12 +39,12 @@ export const getConversationById = query({
   },
 });
 
-export const getConversationByUid = query({
-  args: { uid: v.string() },
+export const getConversationByExternalId = query({
+  args: { externalId: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("conversations")
-      .withIndex("by_uid", (q) => q.eq("uid", args.uid))
+      .withIndex("by_external", (q) => q.eq("externalId", args.externalId))
       .first();
   },
 });
@@ -85,3 +86,19 @@ export const updateTopicAndAgent = mutation({
     });
   },
 });
+
+// export const updateSurveyResponse = mutation({
+//   args: {
+//     id: v.id("conversations"),
+//     type: v.union(v.literal("pre"), v.literal("post")),
+//     surveyResponseId: v.id("surveyResponses"),
+//   },
+//   handler: async (ctx, args) => {
+//     await ctx.db.patch(args.id, {
+//       ...(args.type === "pre"
+//         ? { preSurveyResponseId: args.surveyResponseId }
+//         : { postSurveyResponseId: args.surveyResponseId }),
+//       updatedAt: Date.now(),
+//     });
+//   },
+// });

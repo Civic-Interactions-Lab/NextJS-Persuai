@@ -1,13 +1,39 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { questionValidator } from "./types/surveyTypes";
 
 export default defineSchema({
-  surveyResponses: defineTable({
-    responses: v.string(),
-  }),
+  // ── Surveys ────────────────────────────────────────────────────────────────
+  surveys: defineTable({
+    title: v.string(),
+    description: v.optional(v.string()),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    questions: v.array(questionValidator),
+  }).index("by_active", ["isActive"]),
 
+  surveyResponses: defineTable({
+    surveyId: v.id("surveys"),
+    conversationId: v.optional(v.id("conversations")),
+    externalId: v.string(),
+    type: v.union(v.literal("pre"), v.literal("post")),
+    submittedAt: v.number(),
+    answers: v.array(
+      v.object({
+        questionId: v.string(),
+        value: v.string(),
+      }),
+    ),
+  })
+    .index("by_survey", ["surveyId"])
+    .index("by_external", ["externalId"])
+    .index("by_conversation", ["conversationId"]),
+
+  // ── Conversations ──────────────────────────────────────────────────────────
   conversations: defineTable({
-    uid: v.string(),
+    externalId: v.string(), // PROLIFIC_PID
+    externalStudyId: v.optional(v.string()), // STUDY_ID
+    externalSessionId: v.optional(v.string()), // SESSION_ID
     title: v.string(),
     topic: v.optional(v.string()),
     topicPrompt: v.optional(v.string()),
@@ -16,13 +42,14 @@ export default defineSchema({
     agentPosition: v.optional(
       v.union(v.literal("agree"), v.literal("disagree"), v.literal("neutral")),
     ),
-    surveyResponseId: v.id("surveyResponses"),
+    preSurveyResponseId: v.optional(v.id("surveyResponses")),
+    postSurveyResponseId: v.optional(v.id("surveyResponses")),
     updatedAt: v.number(),
   })
-    .index("by_uid", ["uid", "updatedAt"])
-    .index("by_survey", ["surveyResponseId", "updatedAt"])
+    .index("by_external", ["externalId", "updatedAt"])
     .index("by_updatedAt", ["updatedAt"]),
 
+  // ── Messages ───────────────────────────────────────────────────────────────
   messages: defineTable({
     conversationId: v.id("conversations"),
     role: v.union(v.literal("user"), v.literal("assistant")),
