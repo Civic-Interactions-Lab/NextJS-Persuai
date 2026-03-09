@@ -31,7 +31,7 @@ const SurveyResultsSection = () => {
   const parsedResponses: SurveyResponse[] = responses
     .map((r) => {
       try {
-        return JSON.parse(r.responses) as SurveyResponse;
+        return JSON.parse(r.externalId) as SurveyResponse;
       } catch {
         return null;
       }

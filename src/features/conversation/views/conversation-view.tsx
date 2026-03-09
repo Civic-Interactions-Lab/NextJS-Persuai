@@ -46,15 +46,13 @@ import { ConversationId, MessageId } from "../../../../convex/types";
 import { useRouter } from "next/navigation";
 import { useGetConversationById } from "@/features/conversation/hooks/use-conversations";
 import { useUpdateMessageAgreement } from "@/features/conversation/hooks/use-messages";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Logo from "@/components/logo";
 import { DEBATE_TOPICS } from "@/features/conversation/constants/topics";
 import { AI_AGENTS } from "@/features/conversation/constants/ai-agents";
 import { cn } from "@/lib/utils";
-import { useAccessCodeStore } from "@/features/conversation/stores/access-code-store";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ConversationViewProps {
   conversationId: ConversationId;
@@ -63,15 +61,8 @@ interface ConversationViewProps {
 const ConversationView = ({ conversationId }: ConversationViewProps) => {
   const router = useRouter();
   const [input, setInput] = useState("");
-  const [accessCode, setAccessCode] = useState("");
-  const [verifyError, setVerifyError] = useState("");
-  const [manuallyVerified, setManuallyVerified] = useState(false);
-
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
-  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
-
-  const { accessCode: storedAccessCode, setAccessCode: saveAccessCode } =
-    useAccessCodeStore();
+  const [userStance, setUserStance] = useState("");
 
   const conversation = useGetConversationById(conversationId);
   const createMessage = useMutation(api.messages.createMessage);
@@ -79,13 +70,6 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
     api.conversations.updateTopicAndAgent,
   );
   const updateMessageAgreement = useUpdateMessageAgreement();
-
-  // Compute isVerified instead of storing it in state
-  const isVerified =
-    manuallyVerified ||
-    (conversation &&
-      storedAccessCode &&
-      storedAccessCode.toUpperCase() === conversation.uid);
 
   useEffect(() => {
     if (conversation === null) {
@@ -97,20 +81,6 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
   const isProcessing = messages?.some((msg) => msg.status === "processing");
 
   const selectedTopic = DEBATE_TOPICS.find((t) => t.id === selectedTopicId);
-  const selectedAgent = AI_AGENTS.find((a) => a.id === selectedAgentId);
-
-  const handleVerify = () => {
-    if (!conversation) return;
-
-    if (accessCode.toUpperCase() === conversation.uid) {
-      setManuallyVerified(true);
-      setVerifyError("");
-      // Save access code to Zustand
-      saveAccessCode(accessCode.toUpperCase());
-    } else {
-      setVerifyError("Invalid access code. Please try again.");
-    }
-  };
 
   const handleAgreement = async (
     messageId: MessageId,
@@ -118,7 +88,6 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
   ) => {
     await updateMessageAgreement({ id: messageId, agreement });
 
-    // Populate input with agreement text
     const agreementText = {
       agree: "I agree.",
       disagree: "I disagree.",
@@ -128,22 +97,24 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
   };
 
   const handleStartDebate = async () => {
-    if (!selectedTopic || !selectedAgent) return;
+    if (!selectedTopic || !userStance.trim()) return;
+
+    const randomAgent = AI_AGENTS[Math.floor(Math.random() * AI_AGENTS.length)];
 
     try {
       await updateTopicAndAgent({
         id: conversationId,
         topic: selectedTopic.id,
         topicPrompt: selectedTopic.prompt,
-        agentId: selectedAgent.id,
-        agentName: selectedAgent.name,
-        agentPosition: selectedAgent.position,
+        agentId: randomAgent.id,
+        agentName: randomAgent.name,
+        agentPosition: randomAgent.position,
       });
 
       await createMessage({
         conversationId,
         role: "user",
-        content: selectedTopic.prompt,
+        content: userStance.trim(),
         status: "completed",
       });
 
@@ -156,17 +127,13 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
 
       fetch("/api/message", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversationId,
           assistantMessageId,
-          message: selectedTopic.prompt,
+          message: userStance.trim(),
         }),
-      }).catch((error) => {
-        console.error("Error:", error);
-      });
+      }).catch((error) => console.error("Error:", error));
     } catch (error) {
       console.error("Error:", error);
     }
@@ -194,17 +161,13 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
 
       fetch("/api/message", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversationId,
           assistantMessageId,
           message: message.text.trim(),
         }),
-      }).catch((error) => {
-        console.error("Error:", error);
-      });
+      }).catch((error) => console.error("Error:", error));
     } catch (error) {
       console.error("Error:", error);
     }
@@ -212,7 +175,6 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
 
   const getAgreementIcon = (agreement?: "agree" | "disagree" | "neutral") => {
     if (!agreement) return null;
-
     switch (agreement) {
       case "agree":
         return <CheckCircleIcon className="size-6 text-green-600" />;
@@ -224,8 +186,6 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
   };
 
   const getMessageStyling = (agreement?: "agree" | "disagree" | "neutral") => {
-    if (!agreement) return null;
-
     switch (agreement) {
       case "agree":
         return "bg-green-50 border-l-4 border-l-green-400 dark:bg-green-950/20 dark:border-l-green-500";
@@ -239,55 +199,7 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
   };
 
   return (
-    <div className="relative flex flex-col h-full max-w-3xl mx-auto">
-      {/* Access Code Overlay */}
-      {!isVerified && conversation && (
-        <div className="absolute inset-0 z-50 flex items-start justify-center pt-[30vh] bg-background/80 backdrop-blur-sm">
-          <div className="w-full max-w-md mx-4 space-y-6 rounded-lg border bg-card p-8 shadow-lg">
-            <div className="space-y-2 text-center">
-              <h2 className="text-2xl font-semibold tracking-tight">
-                Enter Access Code
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Please enter your 5-character access code to continue
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Input
-                  type="text"
-                  placeholder="Enter code (e.g., ABC12)"
-                  value={accessCode}
-                  onChange={(e) => {
-                    setAccessCode(e.target.value.toUpperCase());
-                    setVerifyError("");
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleVerify();
-                    }
-                  }}
-                  maxLength={5}
-                  className="text-center text-lg font-mono tracking-widest uppercase"
-                  autoFocus
-                />
-                {verifyError && (
-                  <p className="text-sm text-destructive text-center">
-                    {verifyError}
-                  </p>
-                )}
-              </div>
-
-              <Button onClick={handleVerify} className="w-full">
-                Verify Code
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Conversation Content */}
+    <div className="relative flex flex-col h-full max-w-3xl mx-auto px-3">
       <Conversation className="flex-1 pt-4">
         <ConversationContent className="hide-scrollbar">
           {messages === undefined ? (
@@ -305,7 +217,7 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
                     <Logo size={30} />
                   </div>
                   <p className="text-muted-foreground">
-                    Choose a topic and AI agent to start your debate
+                    Choose a topic to start your debate
                   </p>
                 </div>
 
@@ -314,7 +226,10 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
                     <Label htmlFor="topic-select">Debate Topic</Label>
                     <Select
                       value={selectedTopicId || ""}
-                      onValueChange={setSelectedTopicId}
+                      onValueChange={(val) => {
+                        setSelectedTopicId(val);
+                        setUserStance("");
+                      }}
                     >
                       <SelectTrigger id="topic-select">
                         <SelectValue placeholder="Choose a debate topic..." />
@@ -334,50 +249,30 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
                     )}
                   </div>
 
-                  <div className="space-y-3">
-                    <Label>AI Agent</Label>
-                    <RadioGroup
-                      value={selectedAgentId || ""}
-                      onValueChange={setSelectedAgentId}
-                      className="space-y-3"
-                    >
-                      {AI_AGENTS.map((agent) => (
-                        <div
-                          key={agent.id}
-                          className="flex items-start space-x-3 space-y-0 rounded-md border p-4 cursor-pointer hover:bg-accent"
-                          onClick={() => setSelectedAgentId(agent.id)}
-                        >
-                          <RadioGroupItem value={agent.id} id={agent.id} />
-                          <div className="flex-1 space-y-1">
-                            <Label
-                              htmlFor={agent.id}
-                              className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2"
-                            >
-                              {agent.name}
-                              <span
-                                className={`text-xs px-2 py-0.5 rounded ${
-                                  agent.position === "agree"
-                                    ? "bg-green-100 text-green-700"
-                                    : agent.position === "disagree"
-                                      ? "bg-red-100 text-red-700"
-                                      : "bg-gray-100 text-gray-700"
-                                }`}
-                              >
-                                {agent.position}
-                              </span>
-                            </Label>
-                            <p className="text-sm text-muted-foreground">
-                              {agent.description}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </RadioGroup>
-                  </div>
+                  {selectedTopic && (
+                    <div className="space-y-2">
+                      <Label htmlFor="user-stance">
+                        Your Opening Statement
+                      </Label>
+                      <Textarea
+                        id="user-stance"
+                        value={userStance}
+                        onChange={(e) => setUserStance(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleStartDebate();
+                          }
+                        }}
+                        placeholder="Share your initial thoughts or stance on this topic..."
+                        className="min-h-[100px] resize-none"
+                      />
+                    </div>
+                  )}
 
                   <Button
                     onClick={handleStartDebate}
-                    disabled={!selectedTopicId || !selectedAgentId}
+                    disabled={!selectedTopicId || !userStance.trim()}
                     className="w-full"
                   >
                     Start Debate
@@ -447,9 +342,9 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
                         </MessageAction>
                         {index === messages.length - 1 && (
                           <MessageAction
-                            onClick={() => {
-                              navigator.clipboard.writeText(message.content);
-                            }}
+                            onClick={() =>
+                              navigator.clipboard.writeText(message.content)
+                            }
                             label="Copy"
                           >
                             <CopyIcon className="size-4" />

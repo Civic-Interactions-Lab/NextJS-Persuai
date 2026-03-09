@@ -1,52 +1,28 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-function generateUid(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let uid = "";
-  for (let i = 0; i < 5; i++) {
-    uid += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return uid;
-}
-
 export const submitResponse = mutation({
   args: {
-    responses: v.string(),
-    title: v.optional(v.string()),
+    surveyId: v.id("surveys"),
+    conversationId: v.optional(v.id("conversations")),
+    externalId: v.string(),
+    type: v.union(v.literal("pre"), v.literal("post")),
+    answers: v.array(
+      v.object({
+        questionId: v.string(),
+        value: v.string(),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
-    const surveyResponseId = await ctx.db.insert("surveyResponses", {
-      responses: args.responses,
+    return await ctx.db.insert("surveyResponses", {
+      surveyId: args.surveyId,
+      conversationId: args.conversationId,
+      externalId: args.externalId,
+      type: args.type,
+      answers: args.answers,
+      submittedAt: Date.now(),
     });
-
-    let uid = generateUid();
-
-    let existing = await ctx.db
-      .query("conversations")
-      .withIndex("by_uid", (q) => q.eq("uid", uid))
-      .first();
-
-    while (existing) {
-      uid = generateUid();
-      existing = await ctx.db
-        .query("conversations")
-        .withIndex("by_uid", (q) => q.eq("uid", uid))
-        .first();
-    }
-
-    const conversationId = await ctx.db.insert("conversations", {
-      uid,
-      title: args.title || "New Conversation",
-      surveyResponseId,
-      updatedAt: Date.now(),
-    });
-
-    return {
-      uid,
-      surveyResponseId,
-      conversationId,
-    };
   },
 });
 
@@ -54,6 +30,28 @@ export const getResponseById = query({
   args: { id: v.id("surveyResponses") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.id);
+  },
+});
+
+export const getResponsesByExternalId = query({
+  args: { externalId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("surveyResponses")
+      .withIndex("by_external", (q) => q.eq("externalId", args.externalId))
+      .collect();
+  },
+});
+
+export const getResponsesByConversation = query({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("surveyResponses")
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversationId", args.conversationId),
+      )
+      .collect();
   },
 });
 

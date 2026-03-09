@@ -77,7 +77,7 @@ const ConversationSheet = ({
           <SheetTitle>{conversation?.title || "Conversation"}</SheetTitle>
           {conversation && (
             <div className="space-y-1 text-sm text-muted-foreground">
-              <p>UID: {conversation.uid}</p>
+              <p>ID: {conversation.externalId}</p>
               {conversation.topic && <p>Topic: {conversation.topic}</p>}
               {conversation.agentName && <p>Agent: {conversation.agentName}</p>}
             </div>

@@ -2,13 +2,26 @@
 
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/logo";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import NewConversationDialog from "@/features/conversation/components/new-conversation-dialog";
 
 const NewConversationView = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  useEffect(() => {
+    const prolificPid = searchParams.get("PROLIFIC_PID");
+    const studyId = searchParams.get("STUDY_ID");
+    const sessionId = searchParams.get("SESSION_ID");
+
+    if (prolificPid) {
+      localStorage.setItem("PROLIFIC_PID", prolificPid);
+      localStorage.setItem("STUDY_ID", studyId ?? "");
+      localStorage.setItem("SESSION_ID", sessionId ?? "");
+    }
+  }, [searchParams]);
 
   const handleGetStarted = () => {
     setDialogOpen(true);

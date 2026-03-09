@@ -12,6 +12,7 @@ import type * as conversations from "../conversations.js";
 import type * as messages from "../messages.js";
 import type * as survey from "../survey.js";
 import type * as types from "../types.js";
+import type * as types_surveyTypes from "../types/surveyTypes.js";
 import type * as utils from "../utils.js";
 
 import type {
@@ -25,6 +26,7 @@ declare const fullApi: ApiFromModules<{
   messages: typeof messages;
   survey: typeof survey;
   types: typeof types;
+  "types/surveyTypes": typeof types_surveyTypes;
   utils: typeof utils;
 }>;
 

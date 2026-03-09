@@ -10,10 +10,10 @@ export const useGetConversationById = (id: ConversationId | null) => {
   return useQuery(api.conversations.getConversationById, id ? { id } : "skip");
 };
 
-export const useGetConversationByUid = (uid: string | null) => {
+export const useGetConversationByExternalId = (externalId: string | null) => {
   return useQuery(
-    api.conversations.getConversationByUid,
-    uid ? { uid } : "skip",
+    api.conversations.getConversationByExternalId,
+    externalId ? { externalId } : "skip",
   );
 };
 

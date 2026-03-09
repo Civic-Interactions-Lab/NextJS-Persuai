@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useCreateConversation } from "@/features/conversation/hooks/use-conversations";
 import { useSubmitSurvey } from "@/features/survey/hooks/use-surveys";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,10 @@ import {
 } from "@/components/ui/select";
 import { surveyQuestions } from "@/features/survey/constants/survey-questions";
 import { toast } from "sonner";
+import { Id } from "../../../../convex/_generated/dataModel";
+import { LoaderIcon } from "lucide-react";
+
+const PRE_SURVEY_ID = "jh77ef4vr6sj5kbktg64wp3jy982gt4y" as Id<"surveys">;
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -37,12 +41,8 @@ type FormData = z.infer<typeof formSchema>;
 
 const SurveyView = () => {
   const router = useRouter();
+  const createConversation = useCreateConversation();
   const submitSurvey = useSubmitSurvey();
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [completionData, setCompletionData] = useState<{
-    uid: string;
-    conversationId: string;
-  } | null>(null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -55,65 +55,39 @@ const SurveyView = () => {
 
   const onSubmit = async (data: FormData) => {
     try {
-      const responses = JSON.stringify(data);
+      const externalId =
+        localStorage.getItem("PROLIFIC_PID") ?? crypto.randomUUID();
+      const externalStudyId = localStorage.getItem("STUDY_ID") ?? undefined;
+      const externalSessionId = localStorage.getItem("SESSION_ID") ?? undefined;
 
-      const { uid, conversationId } = await submitSurvey({
-        responses,
+      const conversationId = await createConversation({
+        externalId,
+        externalStudyId,
+        externalSessionId,
         title: "New Conversation",
       });
 
-      setCompletionData({ uid, conversationId });
-      setIsCompleted(true);
+      await submitSurvey({
+        surveyId: PRE_SURVEY_ID,
+        conversationId,
+        externalId,
+        type: "pre",
+        answers: Object.entries(data).map(([questionId, value]) => ({
+          questionId,
+          value,
+        })),
+      });
+
+      router.push(`/conversations/${conversationId}`);
     } catch (error) {
-      console.error("Failed to save survey:", error);
-      toast.error("Failed to save survey. Please try again.");
+      console.error("Failed to submit survey:", error);
+      toast.error("Failed to submit survey. Please try again.");
     }
   };
-
-  if (isCompleted && completionData) {
-    return (
-      <div className="flex items-start justify-center h-full pt-[30vh]">
-        <div className="w-full max-w-md mx-4 space-y-6 rounded-lg border bg-card p-8 shadow-lg">
-          <div className="space-y-2 text-center">
-            <h2 className="text-2xl font-semibold tracking-tight">
-              Survey Complete
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Thank you for your responses
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground text-center">
-                Your Access Code
-              </p>
-              <div className="rounded-md bg-muted px-4 py-3 font-mono text-2xl font-bold tracking-widest text-center">
-                {completionData.uid}
-              </div>
-              <p className="text-xs text-muted-foreground text-center">
-                Please save this code. You&apos;ll need it to continue.
-              </p>
-            </div>
-
-            <Button
-              onClick={() =>
-                router.push(`/conversations/${completionData.conversationId}`)
-              }
-              className="w-full"
-            >
-              Continue
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-2xl mx-auto px-8 lg:px-4 py-6">
-        {/* Header */}
         <div className="mb-8 space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Welcome Survey</h1>
           <p className="text-muted-foreground">
@@ -122,7 +96,6 @@ const SurveyView = () => {
           </p>
         </div>
 
-        {/* Form */}
         <div className="rounded-lg border bg-card shadow-sm">
           <div className="p-6 md:p-8">
             <Form {...form}>
@@ -212,9 +185,14 @@ const SurveyView = () => {
                     className="w-full h-11"
                     disabled={form.formState.isSubmitting}
                   >
-                    {form.formState.isSubmitting
-                      ? "Submitting..."
-                      : "Submit Survey"}
+                    {form.formState.isSubmitting ? (
+                      <div className="flex items-center gap-2">
+                        <LoaderIcon className="size-4 animate-spin" />
+                        <span>Submitting...</span>
+                      </div>
+                    ) : (
+                      "Submit Survey"
+                    )}
                   </Button>
                 </div>
               </form>
@@ -222,7 +200,6 @@ const SurveyView = () => {
           </div>
         </div>
 
-        {/* Footer note */}
         <p className="mt-6 text-sm text-muted-foreground text-center">
           All fields marked with <span className="text-destructive">*</span> are
           required
