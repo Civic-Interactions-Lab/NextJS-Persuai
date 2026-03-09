@@ -43,7 +43,7 @@ const RecentConversationsList = () => {
                         {conversation.title}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        UID: {conversation.uid}
+                        ID: {conversation.externalId}
                       </p>
                     </div>
                     <span className="text-xs text-muted-foreground ml-2 shrink-0">
