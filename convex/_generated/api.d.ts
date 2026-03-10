@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as consents from "../consents.js";
 import type * as conversations from "../conversations.js";
 import type * as messages from "../messages.js";
 import type * as survey from "../survey.js";
@@ -22,6 +23,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  consents: typeof consents;
   conversations: typeof conversations;
   messages: typeof messages;
   survey: typeof survey;

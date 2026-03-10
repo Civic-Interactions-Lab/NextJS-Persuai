@@ -2,23 +2,6 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  // ── Surveys ────────────────────────────────────────────────────────────────
-
-  surveyResponses: defineTable({
-    conversationId: v.optional(v.id("conversations")),
-    externalId: v.string(),
-    type: v.union(v.literal("pre"), v.literal("post")),
-    submittedAt: v.number(),
-    answers: v.array(
-      v.object({
-        questionId: v.string(),
-        value: v.string(),
-      }),
-    ),
-  })
-    .index("by_external", ["externalId"])
-    .index("by_conversation", ["conversationId"]),
-
   // ── Conversations ──────────────────────────────────────────────────────────
   conversations: defineTable({
     externalId: v.string(), // PROLIFIC_PID
@@ -55,4 +38,29 @@ export default defineSchema({
     ),
     updatedAt: v.number(),
   }).index("by_conversation", ["conversationId"]),
+
+  // ── Surveys ────────────────────────────────────────────────────────────────
+
+  surveyResponses: defineTable({
+    conversationId: v.optional(v.id("conversations")),
+    externalId: v.string(),
+    type: v.union(v.literal("pre"), v.literal("post")),
+    submittedAt: v.number(),
+    answers: v.array(
+      v.object({
+        questionId: v.string(),
+        value: v.string(),
+      }),
+    ),
+  })
+    .index("by_external", ["externalId"])
+    .index("by_conversation", ["conversationId"]),
+
+  // ── Consents ───────────────────────────────────────────────────────────────
+
+  consents: defineTable({
+    externalId: v.string(),
+    consented: v.boolean(),
+    consentedAt: v.number(),
+  }).index("by_external", ["externalId"]),
 });

@@ -23,6 +23,8 @@ const ConversationHeader = () => {
   let title = "";
   if (pathname === "/survey") {
     title = "Getting Started";
+  } else if (pathname === "/debriefing") {
+    title = "Study Completion";
   } else if (conversation) {
     title = conversation.title;
   }
