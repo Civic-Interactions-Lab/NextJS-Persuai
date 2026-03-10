@@ -1,19 +1,10 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { questionValidator } from "./types/surveyTypes";
 
 export default defineSchema({
   // ── Surveys ────────────────────────────────────────────────────────────────
-  surveys: defineTable({
-    title: v.string(),
-    description: v.optional(v.string()),
-    isActive: v.boolean(),
-    createdAt: v.number(),
-    questions: v.array(questionValidator),
-  }).index("by_active", ["isActive"]),
 
   surveyResponses: defineTable({
-    surveyId: v.id("surveys"),
     conversationId: v.optional(v.id("conversations")),
     externalId: v.string(),
     type: v.union(v.literal("pre"), v.literal("post")),
@@ -25,7 +16,6 @@ export default defineSchema({
       }),
     ),
   })
-    .index("by_survey", ["surveyId"])
     .index("by_external", ["externalId"])
     .index("by_conversation", ["conversationId"]),
 
@@ -35,6 +25,7 @@ export default defineSchema({
     externalStudyId: v.optional(v.string()), // STUDY_ID
     externalSessionId: v.optional(v.string()), // SESSION_ID
     title: v.string(),
+    status: v.union(v.literal("active"), v.literal("complete")),
     topic: v.optional(v.string()),
     topicPrompt: v.optional(v.string()),
     agentId: v.optional(v.string()),

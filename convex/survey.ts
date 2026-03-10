@@ -3,7 +3,6 @@ import { mutation, query } from "./_generated/server";
 
 export const submitResponse = mutation({
   args: {
-    surveyId: v.id("surveys"),
     conversationId: v.optional(v.id("conversations")),
     externalId: v.string(),
     type: v.union(v.literal("pre"), v.literal("post")),
@@ -16,7 +15,6 @@ export const submitResponse = mutation({
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("surveyResponses", {
-      surveyId: args.surveyId,
       conversationId: args.conversationId,
       externalId: args.externalId,
       type: args.type,
@@ -26,10 +24,9 @@ export const submitResponse = mutation({
   },
 });
 
-export const getResponseById = query({
-  args: { id: v.id("surveyResponses") },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+export const getAllResponses = query({
+  handler: async (ctx) => {
+    return await ctx.db.query("surveyResponses").collect();
   },
 });
 
@@ -52,12 +49,5 @@ export const getResponsesByConversation = query({
         q.eq("conversationId", args.conversationId),
       )
       .collect();
-  },
-});
-
-export const getAllResponses = query({
-  args: {},
-  handler: async (ctx) => {
-    return await ctx.db.query("surveyResponses").collect();
   },
 });

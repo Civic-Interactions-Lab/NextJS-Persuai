@@ -2,6 +2,7 @@ import React from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import ConversationSidebar from "@/features/conversation/components/conversation-sidebar";
 import ConversationHeader from "@/features/conversation/components/conversation-header";
+import SuspenseWrapper from "@/components/suspense-wrapper";
 
 export default function MainLayout({
   children,
@@ -12,9 +13,11 @@ export default function MainLayout({
     <SidebarProvider>
       <div className="flex h-screen w-full overflow-hidden">
         <ConversationSidebar />
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <ConversationHeader />
-          <main className="flex-1 overflow-hidden">{children}</main>
+          <main className="flex-1 overflow-y-auto min-w-0">
+            <SuspenseWrapper>{children}</SuspenseWrapper>
+          </main>
         </div>
       </div>
     </SidebarProvider>

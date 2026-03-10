@@ -14,6 +14,7 @@ export const createConversation = mutation({
       externalId: args.externalId,
       externalStudyId: args.externalStudyId,
       externalSessionId: args.externalSessionId,
+      status: "active",
       title: args.title,
       topic: args.topic,
       updatedAt: Date.now(),
@@ -32,20 +33,31 @@ export const getConversations = query({
   },
 });
 
-export const getConversationById = query({
-  args: { id: v.id("conversations") },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
-  },
-});
-
-export const getConversationByExternalId = query({
+export const getConversationsForExternalId = query({
   args: { externalId: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("conversations")
       .withIndex("by_external", (q) => q.eq("externalId", args.externalId))
-      .first();
+      .order("desc")
+      .collect();
+  },
+});
+
+export const completeConversation = mutation({
+  args: { id: v.id("conversations") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, {
+      status: "complete",
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const getConversationById = query({
+  args: { id: v.id("conversations") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
   },
 });
 
@@ -86,19 +98,3 @@ export const updateTopicAndAgent = mutation({
     });
   },
 });
-
-// export const updateSurveyResponse = mutation({
-//   args: {
-//     id: v.id("conversations"),
-//     type: v.union(v.literal("pre"), v.literal("post")),
-//     surveyResponseId: v.id("surveyResponses"),
-//   },
-//   handler: async (ctx, args) => {
-//     await ctx.db.patch(args.id, {
-//       ...(args.type === "pre"
-//         ? { preSurveyResponseId: args.surveyResponseId }
-//         : { postSurveyResponseId: args.surveyResponseId }),
-//       updatedAt: Date.now(),
-//     });
-//   },
-// });
