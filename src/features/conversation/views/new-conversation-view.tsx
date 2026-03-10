@@ -5,6 +5,7 @@ import Logo from "@/components/logo";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import NewConversationDialog from "@/features/conversation/components/new-conversation-dialog";
+import { toast } from "sonner";
 
 const NewConversationView = () => {
   const router = useRouter();
@@ -24,12 +25,19 @@ const NewConversationView = () => {
   }, [searchParams]);
 
   const handleGetStarted = () => {
+    const pid = localStorage.getItem("PROLIFIC_PID");
+    if (!pid) {
+      toast.error(
+        "No Participant ID found. Please access this study through Prolific.",
+      );
+      return;
+    }
     setDialogOpen(true);
   };
 
   const handleConsentConfirm = () => {
     setDialogOpen(false);
-    router.push("/survey");
+    router.push("/survey?type=pre");
   };
 
   return (

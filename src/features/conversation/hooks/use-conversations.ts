@@ -10,11 +10,15 @@ export const useGetConversationById = (id: ConversationId | null) => {
   return useQuery(api.conversations.getConversationById, id ? { id } : "skip");
 };
 
-export const useGetConversationByExternalId = (externalId: string | null) => {
+export const useGetConversationsForExternalId = (externalId: string | null) => {
   return useQuery(
-    api.conversations.getConversationByExternalId,
+    api.conversations.getConversationsForExternalId,
     externalId ? { externalId } : "skip",
   );
+};
+
+export const useCompleteConversation = () => {
+  return useMutation(api.conversations.completeConversation);
 };
 
 export const useCreateConversation = () => {

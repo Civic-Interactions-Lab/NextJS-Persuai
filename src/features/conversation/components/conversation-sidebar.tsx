@@ -20,9 +20,10 @@ import {
 } from "@/components/ui/sidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { useGetConversations } from "@/features/conversation/hooks/use-conversations";
+import { useGetConversationsForExternalId } from "@/features/conversation/hooks/use-conversations";
 import Logo from "@/components/logo";
 import NewConversationDialog from "@/features/conversation/components/new-conversation-dialog";
+import { toast } from "sonner";
 
 const ConversationSidebar = () => {
   const pathname = usePathname();
@@ -33,15 +34,35 @@ const ConversationSidebar = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const conversations = useGetConversations();
+  const externalId =
+    typeof window !== "undefined" ? localStorage.getItem("PROLIFIC_PID") : null;
+
+  const conversations = useGetConversationsForExternalId(externalId);
+
+  const hasActiveConversation = conversations?.some(
+    (c) => c.status === "active" || !c.status,
+  );
 
   const handleNewChat = () => {
+    const pid = localStorage.getItem("PROLIFIC_PID");
+    if (!pid) {
+      toast.error(
+        "No Participant ID found. Please access this study through Prolific.",
+      );
+      return;
+    }
+    if (hasActiveConversation) {
+      toast.error(
+        "You have an active conversation. Please complete it before starting a new one.",
+      );
+      return;
+    }
     setDialogOpen(true);
   };
 
   const handleConsentConfirm = () => {
     setDialogOpen(false);
-    router.push("/survey");
+    router.push("/survey?type=pre");
   };
 
   const toggleSearch = () => {
