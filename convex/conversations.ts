@@ -7,7 +7,6 @@ export const createConversation = mutation({
     externalStudyId: v.optional(v.string()),
     externalSessionId: v.optional(v.string()),
     title: v.string(),
-    topic: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("conversations", {
@@ -16,7 +15,6 @@ export const createConversation = mutation({
       externalSessionId: args.externalSessionId,
       status: "active",
       title: args.title,
-      topic: args.topic,
       updatedAt: Date.now(),
     });
   },
@@ -77,23 +75,30 @@ export const updateTitle = mutation({
 export const updateTopicAndAgent = mutation({
   args: {
     id: v.id("conversations"),
-    topic: v.string(),
-    topicPrompt: v.string(),
-    agentId: v.string(),
-    agentName: v.string(),
-    agentPosition: v.union(
-      v.literal("agree"),
-      v.literal("disagree"),
-      v.literal("neutral"),
-    ),
+    topicId: v.id("topics"),
+    agentId: v.id("agents"),
   },
   handler: async (ctx, args) => {
+    const topic = await ctx.db.get(args.topicId);
+    const agent = await ctx.db.get(args.agentId);
+
+    if (!topic || !agent) throw new Error("Topic or agent not found");
+
     await ctx.db.patch(args.id, {
-      topic: args.topic,
-      topicPrompt: args.topicPrompt,
+      topicId: args.topicId,
       agentId: args.agentId,
-      agentName: args.agentName,
-      agentPosition: args.agentPosition,
+      metadata: {
+        topic: {
+          label: topic.label,
+          prompt: topic.prompt,
+        },
+        agent: {
+          name: agent.name,
+          position: agent.position,
+          description: agent.description,
+          systemPrompt: agent.systemPrompt,
+        },
+      },
       updatedAt: Date.now(),
     });
   },

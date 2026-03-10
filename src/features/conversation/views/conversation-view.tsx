@@ -65,6 +65,8 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
   const [userStance, setUserStance] = useState("");
 
   const conversation = useGetConversationById(conversationId);
+  const isComplete = conversation?.status === "complete";
+
   const createMessage = useMutation(api.messages.createMessage);
   const updateTopicAndAgent = useMutation(
     api.conversations.updateTopicAndAgent,
@@ -316,7 +318,8 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
                     </div>
                   </MessageContent>
                   {message.role === "assistant" &&
-                    message.status === "completed" && (
+                    message.status === "completed" &&
+                    index === messages.length - 1 && (
                       <MessageActions className="justify-end mb-2 mr-2">
                         <MessageAction
                           onClick={() => handleAgreement(message._id, "agree")}
@@ -340,16 +343,14 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
                         >
                           <MinusCircleIcon className="size-4" />
                         </MessageAction>
-                        {index === messages.length - 1 && (
-                          <MessageAction
-                            onClick={() =>
-                              navigator.clipboard.writeText(message.content)
-                            }
-                            label="Copy"
-                          >
-                            <CopyIcon className="size-4" />
-                          </MessageAction>
-                        )}
+                        <MessageAction
+                          onClick={() =>
+                            navigator.clipboard.writeText(message.content)
+                          }
+                          label="Copy"
+                        >
+                          <CopyIcon className="size-4" />
+                        </MessageAction>
                       </MessageActions>
                     )}
                   {message.role === "assistant" && message.agreement && (
@@ -367,20 +368,26 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
 
       {messages && messages.length > 0 && (
         <div className="p-4 pb-8">
-          <PromptInput onSubmit={handleSubmit}>
-            <PromptInputBody>
-              <PromptInputTextarea
-                placeholder="Try to convince the AI..."
-                onChange={(e) => setInput(e.target.value)}
-                value={input}
-                disabled={isProcessing}
-              />
-            </PromptInputBody>
-            <PromptInputFooter>
-              <PromptInputTools />
-              <PromptInputSubmit disabled={!input || isProcessing} />
-            </PromptInputFooter>
-          </PromptInput>
+          {isComplete ? (
+            <div className="flex items-center justify-center rounded-lg border bg-muted/50 px-4 py-3 text-xs sm:text-sm text-muted-foreground text-center">
+              This conversation has ended.
+            </div>
+          ) : (
+            <PromptInput onSubmit={handleSubmit}>
+              <PromptInputBody>
+                <PromptInputTextarea
+                  placeholder="Try to convince the AI..."
+                  onChange={(e) => setInput(e.target.value)}
+                  value={input}
+                  disabled={isProcessing}
+                />
+              </PromptInputBody>
+              <PromptInputFooter>
+                <PromptInputTools />
+                <PromptInputSubmit disabled={!input || isProcessing} />
+              </PromptInputFooter>
+            </PromptInput>
+          )}
         </div>
       )}
     </div>
