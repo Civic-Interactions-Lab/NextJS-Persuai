@@ -22,13 +22,6 @@ import { cn } from "@/lib/utils";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { useCompleteConversation } from "@/features/conversation/hooks/use-conversations";
 
-const generateCompletionCode = () => {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  return Array.from({ length: 8 }, () =>
-    chars.charAt(Math.floor(Math.random() * chars.length)),
-  ).join("");
-};
-
 const formSchema = z.object({
   participantId: z.string().min(1, "Participant ID is required"),
   aiTrust: z.string().min(1, "Required"),
@@ -145,11 +138,7 @@ const PostSurveyView = ({
       });
 
       await completeConversation({ id: conversationId });
-      const code = generateCompletionCode();
-      window.open(
-        `https://app.prolific.com/submissions/complete?cc=${code}`,
-        "_blank",
-      );
+      router.replace("/debriefing");
     } catch (error) {
       console.error("Failed to submit survey:", error);
       toast.error("Failed to submit survey. Please try again.");
@@ -315,7 +304,7 @@ const PostSurveyView = ({
                         <span>Submitting...</span>
                       </div>
                     ) : (
-                      "Submit & Complete Study"
+                      "Submit"
                     )}
                   </Button>
                 </div>

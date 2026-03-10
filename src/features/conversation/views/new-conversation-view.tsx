@@ -5,7 +5,9 @@ import Logo from "@/components/logo";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import NewConversationDialog from "@/features/conversation/components/new-conversation-dialog";
+import ConsentDialog from "@/features/conversation/components/consent-dialog";
 import { toast } from "sonner";
+import { useGetConsentForExternalId } from "@/features/conversation/hooks/use-consents";
 
 const NewConversationView = () => {
   const router = useRouter();
@@ -23,6 +25,13 @@ const NewConversationView = () => {
       localStorage.setItem("SESSION_ID", sessionId ?? "");
     }
   }, [searchParams]);
+
+  const externalId =
+    typeof window !== "undefined" ? localStorage.getItem("PROLIFIC_PID") : null;
+
+  const consent = useGetConsentForExternalId(externalId);
+  const hasConsented = consent?.consented === true;
+  const isLoading = consent === undefined;
 
   const handleGetStarted = () => {
     const pid = localStorage.getItem("PROLIFIC_PID");
@@ -42,6 +51,8 @@ const NewConversationView = () => {
 
   return (
     <>
+      {externalId && !isLoading && !hasConsented && <ConsentDialog />}
+
       <NewConversationDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
