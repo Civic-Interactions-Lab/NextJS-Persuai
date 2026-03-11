@@ -7,16 +7,20 @@ export const createConversation = mutation({
     externalStudyId: v.optional(v.string()),
     externalSessionId: v.optional(v.string()),
     title: v.string(),
-    topic: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const agents = await ctx.db.query("agents").collect();
+    const randomAgent = agents.length
+      ? agents[Math.floor(Math.random() * agents.length)]
+      : null;
+
     return await ctx.db.insert("conversations", {
       externalId: args.externalId,
       externalStudyId: args.externalStudyId,
       externalSessionId: args.externalSessionId,
       status: "active",
       title: args.title,
-      topic: args.topic,
+      agentId: randomAgent?._id,
       updatedAt: Date.now(),
     });
   },
@@ -74,27 +78,54 @@ export const updateTitle = mutation({
   },
 });
 
-export const updateTopicAndAgent = mutation({
+export const update = mutation({
   args: {
     id: v.id("conversations"),
-    topic: v.string(),
-    topicPrompt: v.string(),
-    agentId: v.string(),
-    agentName: v.string(),
-    agentPosition: v.union(
-      v.literal("agree"),
-      v.literal("disagree"),
-      v.literal("neutral"),
-    ),
+    topicId: v.id("topics"),
   },
   handler: async (ctx, args) => {
+    const topic = await ctx.db.get(args.topicId);
+    const conversation = await ctx.db.get(args.id);
+    const agent = conversation?.agentId
+      ? await ctx.db.get(conversation.agentId)
+      : null;
+
+    if (!topic || !agent) throw new Error("Topic or agent not found");
+
     await ctx.db.patch(args.id, {
-      topic: args.topic,
-      topicPrompt: args.topicPrompt,
-      agentId: args.agentId,
-      agentName: args.agentName,
-      agentPosition: args.agentPosition,
+      topicId: args.topicId,
+      metadata: {
+        topic: {
+          title: topic.title,
+          issue: topic.issue,
+          context: topic.context,
+        },
+        agent: {
+          name: agent.name,
+          position: agent.position,
+          description: agent.description,
+          systemPrompt: agent.systemPrompt,
+        },
+      },
       updatedAt: Date.now(),
     });
+  },
+});
+
+export const getConversationWithAgentAndTopic = query({
+  args: { id: v.id("conversations") },
+  handler: async (ctx, args) => {
+    const conversation = await ctx.db.get(args.id);
+    if (!conversation) return null;
+
+    const agent = conversation.agentId
+      ? await ctx.db.get(conversation.agentId)
+      : null;
+
+    const topic = conversation.topicId
+      ? await ctx.db.get(conversation.topicId)
+      : null;
+
+    return { conversation, agent, topic };
   },
 });

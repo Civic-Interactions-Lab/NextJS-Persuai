@@ -3,11 +3,11 @@ import { NextResponse } from "next/server";
 import { google } from "@ai-sdk/google";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../convex/_generated/api";
-import { ConversationId, MessageId } from "../../../../convex/types";
 import {
-  getSystemPrompt,
-  TITLE_GENERATION_PROMPT,
-} from "@/features/conversation/constants/ai-prompts";
+  ConversationId,
+  MessageId,
+} from "../../../../convex/types/convexTypes";
+import { TITLE_GENERATION_PROMPT } from "@/features/conversation/constants/ai-prompts";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
@@ -25,52 +25,54 @@ export async function POST(request: Request) {
       );
     }
 
-    const conversation = await convex.query(
-      api.conversations.getConversationById,
-      {
-        id: conversationId as ConversationId,
-      },
+    const result = await convex.query(
+      api.conversations.getConversationWithAgentAndTopic,
+      { id: conversationId as ConversationId },
     );
 
-    if (!conversation) {
+    if (!result) {
       return NextResponse.json(
         { error: "Conversation not found" },
         { status: 404 },
       );
     }
 
-    const agentPosition = conversation.agentPosition || "neutral";
-    const topicPrompt = conversation.topicPrompt;
+    const { agent, topic } = result;
 
-    // Get all messages for context
+    if (!agent?.systemPrompt || !topic?.context) {
+      return NextResponse.json(
+        { error: "Conversation is missing agent or topic" },
+        { status: 400 },
+      );
+    }
+
+    const systemPrompt = `${agent.systemPrompt}\n\nTopic context: "${topic.context}"`;
+
     const messages = await convex.query(api.messages.getMessages, {
       conversationId: conversationId as ConversationId,
     });
 
     try {
-      // Generate AI response with position-specific prompt
       const { text } = await generateText({
         model: google("gemini-2.5-flash"),
-        system: getSystemPrompt(agentPosition, topicPrompt),
+        system: systemPrompt,
         messages: messages.map((msg) => ({
           role: msg.role,
           content: msg.content,
         })),
       });
 
-      // Update assistant message with generated content and completed status
       await convex.mutation(api.messages.updateMessage, {
         id: assistantMessageId as MessageId,
         content: text,
         status: "completed",
       });
 
-      // Generate title if this is the first exchange (2 messages: user + assistant)
       if (messages.length === 2) {
         const { text: generatedTitle } = await generateText({
           model: google("gemini-2.5-flash"),
           system: TITLE_GENERATION_PROMPT,
-          prompt: `Topic: ${topicPrompt}\n\nUser's opening statement: ${message}`,
+          prompt: `Topic: ${topic.issue}\n\nUser's opening statement: ${message}`,
         });
 
         await convex.mutation(api.conversations.updateTitle, {
@@ -81,7 +83,6 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ response: text });
     } catch (error) {
-      // Update assistant message with error status
       await convex.mutation(api.messages.updateMessage, {
         id: assistantMessageId as MessageId,
         status: "error",

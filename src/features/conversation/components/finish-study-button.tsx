@@ -14,12 +14,14 @@ import {
 import { SendIcon } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { ConversationId } from "../../../../convex/types";
+import { ConversationId } from "../../../../convex/types/convexTypes";
 import { useGetConversationById } from "@/features/conversation/hooks/use-conversations";
 
 interface FinishStudyButtonProps {
   conversationId: ConversationId;
 }
+
+const MIN_LENGTH = 10;
 
 const FinishStudyButton = ({ conversationId }: FinishStudyButtonProps) => {
   const router = useRouter();
@@ -28,7 +30,7 @@ const FinishStudyButton = ({ conversationId }: FinishStudyButtonProps) => {
   const messages = useQuery(api.messages.getMessages, { conversationId });
   const conversation = useGetConversationById(conversationId);
 
-  const isDisabled = !messages || messages.length < 2;
+  const isDisabled = !messages || messages.length < MIN_LENGTH;
 
   const handleClick = () => {
     if (conversation?.status === "complete") {

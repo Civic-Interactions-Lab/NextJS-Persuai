@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import PreSurveyView from "@/features/survey/views/pre-survey-view";
 import PostSurveyView from "@/features/survey/views/post-survey-view";
-import { ConversationId } from "../../../../convex/types";
+import { ConversationId } from "../../../../convex/types/convexTypes";
 
 const SurveyView = () => {
   const searchParams = useSearchParams();

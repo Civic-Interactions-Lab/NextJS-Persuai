@@ -3,7 +3,7 @@
 import { useGetConversations } from "@/features/conversation/hooks/use-conversations";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatTimeAgo } from "@/lib/utils";
-import { ConversationId } from "../../../../convex/types";
+import { ConversationId } from "../../../../convex/types/convexTypes";
 import { useState } from "react";
 import ConversationSheet from "./conversation-sheet";
 
@@ -42,13 +42,38 @@ const RecentConversationsList = () => {
                       <p className="font-medium truncate">
                         {conversation.title}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        ID: {conversation.externalId}
-                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {conversation.metadata?.topic?.title && (
+                          <span className="text-xs text-muted-foreground">
+                            {conversation.metadata.topic.title}
+                          </span>
+                        )}
+                        {conversation.metadata?.agent?.name && (
+                          <>
+                            <span className="text-xs text-muted-foreground">
+                              ·
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {conversation.metadata.agent.name}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-xs text-muted-foreground ml-2 shrink-0">
-                      {formatTimeAgo(conversation.updatedAt)}
-                    </span>
+                    <div className="flex flex-col items-end gap-1 ml-2 shrink-0">
+                      <span className="text-xs text-muted-foreground max-w-[80px] text-right leading-tight">
+                        {formatTimeAgo(conversation.updatedAt)}
+                      </span>
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
+                          conversation.status === "complete"
+                            ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
+                            : "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400"
+                        }`}
+                      >
+                        {conversation.status}
+                      </span>
+                    </div>
                   </button>
                 ))}
               </div>

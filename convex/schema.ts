@@ -1,27 +1,38 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { positionValidator } from "./types/convexTypes";
 
 export default defineSchema({
   // ── Conversations ──────────────────────────────────────────────────────────
   conversations: defineTable({
-    externalId: v.string(), // PROLIFIC_PID
-    externalStudyId: v.optional(v.string()), // STUDY_ID
-    externalSessionId: v.optional(v.string()), // SESSION_ID
+    externalId: v.string(),
+    externalStudyId: v.optional(v.string()),
+    externalSessionId: v.optional(v.string()),
     title: v.string(),
     status: v.union(v.literal("active"), v.literal("complete")),
-    topic: v.optional(v.string()),
-    topicPrompt: v.optional(v.string()),
-    agentId: v.optional(v.string()),
-    agentName: v.optional(v.string()),
-    agentPosition: v.optional(
-      v.union(v.literal("agree"), v.literal("disagree"), v.literal("neutral")),
-    ),
+    topicId: v.optional(v.id("topics")),
+    agentId: v.optional(v.id("agents")),
+    metadata: v.optional(v.any()),
     preSurveyResponseId: v.optional(v.id("surveyResponses")),
     postSurveyResponseId: v.optional(v.id("surveyResponses")),
     updatedAt: v.number(),
   })
     .index("by_external", ["externalId", "updatedAt"])
     .index("by_updatedAt", ["updatedAt"]),
+
+  agents: defineTable({
+    name: v.string(),
+    position: positionValidator,
+    description: v.string(),
+    systemPrompt: v.string(),
+  }).index("by_position", ["position"]),
+
+  topics: defineTable({
+    title: v.string(),
+    issue: v.string(),
+    context: v.string(),
+    isActive: v.optional(v.boolean()),
+  }),
 
   // ── Messages ───────────────────────────────────────────────────────────────
   messages: defineTable({

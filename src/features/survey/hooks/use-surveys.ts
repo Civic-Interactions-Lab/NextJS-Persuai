@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { ConversationId } from "../../../../convex/types";
+import { ConversationId } from "../../../../convex/types/convexTypes";
 
 export const useSubmitSurvey = () => {
   return useMutation(api.survey.submitResponse);
