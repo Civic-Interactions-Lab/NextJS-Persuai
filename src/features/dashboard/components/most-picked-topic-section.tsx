@@ -1,24 +1,23 @@
 "use client";
 
 import { useGetConversations } from "@/features/conversation/hooks/use-conversations";
-import { DEBATE_TOPICS } from "@/features/conversation/constants/topics";
+import { useGetTopics } from "@/features/settings/hooks/use-topics";
 
 const MostPickedTopicSection = () => {
   const conversations = useGetConversations();
+  const topics = useGetTopics();
 
-  // Count topics
   const topicCounts =
     conversations?.reduce(
       (acc, conv) => {
-        if (conv.topic) {
-          acc[conv.topic] = (acc[conv.topic] || 0) + 1;
+        if (conv.topicId) {
+          acc[conv.topicId] = (acc[conv.topicId] || 0) + 1;
         }
         return acc;
       },
       {} as Record<string, number>,
     ) || {};
 
-  // Find most popular topic
   let mostPopularTopic = "No data";
   let mostPopularTopicId = "";
   const entries = Object.entries(topicCounts);
@@ -28,13 +27,13 @@ const MostPickedTopicSection = () => {
       entry[1] > max[1] ? entry : max,
     );
     mostPopularTopicId = topicId;
-
-    const topic = DEBATE_TOPICS.find((t) => t.id === topicId);
-    mostPopularTopic = topic?.label || topicId;
+    const topic = topics?.find((t) => t._id === topicId);
+    mostPopularTopic = topic?.title || topicId;
   }
 
-  // Calculate max count for normalization
   const maxCount = Math.max(...Object.values(topicCounts), 1);
+
+  if (!topics) return null;
 
   return (
     <div className="rounded-lg border bg-card p-6">
@@ -51,19 +50,19 @@ const MostPickedTopicSection = () => {
       </div>
 
       <div className="space-y-3">
-        {DEBATE_TOPICS.map((topic) => {
-          const count = topicCounts[topic.id] || 0;
+        {topics.map((topic) => {
+          const count = topicCounts[topic._id] || 0;
           const percentage =
             maxCount > 0 ? Math.max((count / maxCount) * 100, 0) : 0;
-          const isPopular = topic.id === mostPopularTopicId;
+          const isPopular = topic._id === mostPopularTopicId;
 
           return (
-            <div key={topic.id} className="space-y-2">
+            <div key={topic._id} className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span
                   className={`font-medium ${isPopular ? "text-primary" : "text-foreground"}`}
                 >
-                  {topic.label}
+                  {topic.issue}
                 </span>
                 <span className="text-muted-foreground">{count}</span>
               </div>

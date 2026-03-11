@@ -9,12 +9,18 @@ export const createConversation = mutation({
     title: v.string(),
   },
   handler: async (ctx, args) => {
+    const agents = await ctx.db.query("agents").collect();
+    const randomAgent = agents.length
+      ? agents[Math.floor(Math.random() * agents.length)]
+      : null;
+
     return await ctx.db.insert("conversations", {
       externalId: args.externalId,
       externalStudyId: args.externalStudyId,
       externalSessionId: args.externalSessionId,
       status: "active",
       title: args.title,
+      agentId: randomAgent?._id,
       updatedAt: Date.now(),
     });
   },
@@ -72,25 +78,27 @@ export const updateTitle = mutation({
   },
 });
 
-export const updateTopicAndAgent = mutation({
+export const update = mutation({
   args: {
     id: v.id("conversations"),
     topicId: v.id("topics"),
-    agentId: v.id("agents"),
   },
   handler: async (ctx, args) => {
     const topic = await ctx.db.get(args.topicId);
-    const agent = await ctx.db.get(args.agentId);
+    const conversation = await ctx.db.get(args.id);
+    const agent = conversation?.agentId
+      ? await ctx.db.get(conversation.agentId)
+      : null;
 
     if (!topic || !agent) throw new Error("Topic or agent not found");
 
     await ctx.db.patch(args.id, {
       topicId: args.topicId,
-      agentId: args.agentId,
       metadata: {
         topic: {
-          label: topic.label,
-          prompt: topic.prompt,
+          title: topic.title,
+          issue: topic.issue,
+          context: topic.context,
         },
         agent: {
           name: agent.name,
@@ -101,5 +109,23 @@ export const updateTopicAndAgent = mutation({
       },
       updatedAt: Date.now(),
     });
+  },
+});
+
+export const getConversationWithAgentAndTopic = query({
+  args: { id: v.id("conversations") },
+  handler: async (ctx, args) => {
+    const conversation = await ctx.db.get(args.id);
+    if (!conversation) return null;
+
+    const agent = conversation.agentId
+      ? await ctx.db.get(conversation.agentId)
+      : null;
+
+    const topic = conversation.topicId
+      ? await ctx.db.get(conversation.topicId)
+      : null;
+
+    return { conversation, agent, topic };
   },
 });

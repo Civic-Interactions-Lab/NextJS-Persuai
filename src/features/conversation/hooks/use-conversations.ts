@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { ConversationId } from "../../../../convex/types";
+import { ConversationId } from "../../../../convex/types/convexTypes";
 
 export const useGetConversations = () => {
   return useQuery(api.conversations.getConversations);
@@ -29,6 +29,6 @@ export const useUpdateTitle = () => {
   return useMutation(api.conversations.updateTitle);
 };
 
-export const useUpdateTopicAndAgent = () => {
-  return useMutation(api.conversations.updateTopicAndAgent);
+export const useUpdateConversation = () => {
+  return useMutation(api.conversations.update);
 };

@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { PlusIcon, LoaderIcon } from "lucide-react";
-import { Id } from "../../../../convex/_generated/dataModel";
 import {
   useGetTopics,
   useCreateTopic,
@@ -40,23 +39,11 @@ import {
   useGetAgents,
   useUpdateAgent,
 } from "@/features/settings/hooks/use-agents";
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-type Topic = {
-  _id: Id<"topics">;
-  label: string;
-  prompt: string;
-  isActive?: boolean;
-};
-
-type Agent = {
-  _id: Id<"agents">;
-  name: string;
-  position: "agree" | "disagree" | "neutral";
-  description: string;
-  systemPrompt: string;
-};
+import {
+  Agent,
+  AgentPosition,
+  Topic,
+} from "../../../../convex/types/convexTypes";
 
 // ── Topic Sheet ────────────────────────────────────────────────────────────
 
@@ -73,25 +60,29 @@ const TopicSheet = ({
   const updateTopic = useUpdateTopic();
   const removeTopic = useRemoveTopic();
 
-  const [label, setLabel] = useState(topic?.label ?? "");
-  const [prompt, setPrompt] = useState(topic?.prompt ?? "");
-  const [isActive, setIsActive] = useState(topic?.isActive ?? true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [title, setTitle] = useState(topic?.title ?? "");
+  const [issue, setIssue] = useState(topic?.issue ?? "");
+  const [context, setContext] = useState(topic?.context ?? "");
+  const [isActive, setIsActive] = useState(topic?.isActive ?? true);
 
   React.useEffect(() => {
-    setLabel(topic?.label ?? "");
-    setPrompt(topic?.prompt ?? "");
-    setIsActive(topic?.isActive ?? true);
-  }, [topic]);
+    if (open) {
+      setTitle(topic?.title ?? "");
+      setIssue(topic?.issue ?? "");
+      setContext(topic?.context ?? "");
+      setIsActive(topic?.isActive ?? true);
+    }
+  }, [topic, open]);
 
   const handleSave = async () => {
-    if (!label.trim() || !prompt.trim()) return;
+    if (!title.trim() || !issue.trim() || !context.trim()) return;
     setSaving(true);
     if (topic) {
-      await updateTopic({ id: topic._id, label, prompt, isActive });
+      await updateTopic({ id: topic._id, title, issue, context, isActive });
     } else {
-      await createTopic({ label, prompt, isActive });
+      await createTopic({ title, issue, context, isActive });
     }
     setSaving(false);
     onOpenChange(false);
@@ -114,21 +105,30 @@ const TopicSheet = ({
 
         <div className="flex flex-col gap-5 flex-1">
           <div className="space-y-2">
-            <Label>Label</Label>
+            <Label>Title</Label>
             <Input
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="e.g. Universal Basic Income"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Freedom of Speech"
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Prompt</Label>
+            <Label>Issue</Label>
+            <Input
+              value={issue}
+              onChange={(e) => setIssue(e.target.value)}
+              placeholder="e.g. Should free speech be protected even when it offends others?"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Context</Label>
             <Textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="The opening statement shown to participants..."
-              className="min-h-[500px] resize-none"
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              placeholder="Background information about this topic..."
+              className="min-h-[300px] resize-none"
             />
           </div>
 
@@ -145,7 +145,9 @@ const TopicSheet = ({
         <div className="flex flex-col gap-2 pt-6 border-t mt-6">
           <Button
             onClick={handleSave}
-            disabled={saving || !label.trim() || !prompt.trim()}
+            disabled={
+              saving || !title.trim() || !issue.trim() || !context.trim()
+            }
           >
             {saving ? (
               <div className="flex items-center gap-2">
@@ -195,7 +197,7 @@ const AgentSheet = ({
   const createAgent = useCreateAgent();
 
   const [name, setName] = useState(agent?.name ?? "");
-  const [position, setPosition] = useState<"agree" | "disagree" | "neutral">(
+  const [position, setPosition] = useState<AgentPosition>(
     agent?.position ?? "neutral",
   );
   const [description, setDescription] = useState(agent?.description ?? "");
@@ -203,11 +205,13 @@ const AgentSheet = ({
   const [saving, setSaving] = useState(false);
 
   React.useEffect(() => {
-    setName(agent?.name ?? "");
-    setPosition(agent?.position ?? "neutral");
-    setDescription(agent?.description ?? "");
-    setSystemPrompt(agent?.systemPrompt ?? "");
-  }, [agent]);
+    if (open) {
+      setName(agent?.name ?? "");
+      setPosition(agent?.position ?? "neutral");
+      setDescription(agent?.description ?? "");
+      setSystemPrompt(agent?.systemPrompt ?? "");
+    }
+  }, [agent, open]);
 
   const handleSave = async () => {
     if (!name.trim()) return;
@@ -248,9 +252,7 @@ const AgentSheet = ({
             <Label>Position</Label>
             <Select
               value={position}
-              onValueChange={(v) =>
-                setPosition(v as "agree" | "disagree" | "neutral")
-              }
+              onValueChange={(v) => setPosition(v as AgentPosition)}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -259,6 +261,7 @@ const AgentSheet = ({
                 <SelectItem value="agree">Agree</SelectItem>
                 <SelectItem value="disagree">Disagree</SelectItem>
                 <SelectItem value="neutral">Neutral</SelectItem>
+                <SelectItem value="manipulative">Manipulative</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -341,72 +344,6 @@ const SettingsView = () => {
   return (
     <div className="h-full overflow-y-auto bg-background">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
-        {/* Topics */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold">Topics</h2>
-              <p className="text-xs text-muted-foreground">
-                Debate topics shown to participants
-              </p>
-            </div>
-            <Button size="sm" onClick={openAddTopic}>
-              <PlusIcon className="size-4" />
-              Add Topic
-            </Button>
-          </div>
-
-          <div className="rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Label</TableHead>
-                  <TableHead className="hidden sm:table-cell">Prompt</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {!topics || topics.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={3}
-                      className="text-center text-muted-foreground text-sm py-8"
-                    >
-                      No topics yet. Add one to get started.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  topics.map((topic) => (
-                    <TableRow
-                      key={topic._id}
-                      className="cursor-pointer"
-                      onClick={() => openEditTopic(topic as Topic)}
-                    >
-                      <TableCell className="font-medium">
-                        {topic.label}
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell text-muted-foreground max-w-xs truncate">
-                        {topic.prompt}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                            topic.isActive
-                              ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          {topic.isActive ? "Active" : "Inactive"}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </section>
-
         {/* Agents */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
@@ -460,7 +397,9 @@ const SettingsView = () => {
                               ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
                               : agent.position === "disagree"
                                 ? "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
-                                : "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400"
+                                : agent.position === "manipulative"
+                                  ? "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400"
+                                  : "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400"
                           }`}
                         >
                           {agent.position}
@@ -468,6 +407,72 @@ const SettingsView = () => {
                       </TableCell>
                       <TableCell className="hidden sm:table-cell text-muted-foreground">
                         {agent.description}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
+
+        {/* Topics */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold">Topics</h2>
+              <p className="text-xs text-muted-foreground">
+                Debate topics shown to participants
+              </p>
+            </div>
+            <Button size="sm" onClick={openAddTopic}>
+              <PlusIcon className="size-4" />
+              Add Topic
+            </Button>
+          </div>
+
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead className="hidden sm:table-cell">Issue</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {!topics || topics.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={3}
+                      className="text-center text-muted-foreground text-sm py-8"
+                    >
+                      No topics yet. Add one to get started.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  topics.map((topic) => (
+                    <TableRow
+                      key={topic._id}
+                      className="cursor-pointer"
+                      onClick={() => openEditTopic(topic as Topic)}
+                    >
+                      <TableCell className="font-medium">
+                        {topic.title}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-muted-foreground max-w-xs truncate">
+                        {topic.issue}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                            topic.isActive
+                              ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {topic.isActive ? "Active" : "Inactive"}
+                        </span>
                       </TableCell>
                     </TableRow>
                   ))

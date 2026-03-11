@@ -1,6 +1,6 @@
 import React from "react";
 import ConversationView from "@/features/conversation/views/conversation-view";
-import { ConversationId } from "../../../../../convex/types";
+import { ConversationId } from "../../../../../convex/types/convexTypes";
 import { redirect } from "next/navigation";
 import { isValidConvexId } from "../../../../../convex/utils";
 

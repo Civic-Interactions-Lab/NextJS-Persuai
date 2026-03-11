@@ -14,7 +14,7 @@ import {
 import { SendIcon } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { ConversationId } from "../../../../convex/types";
+import { ConversationId } from "../../../../convex/types/convexTypes";
 import { useGetConversationById } from "@/features/conversation/hooks/use-conversations";
 
 interface FinishStudyButtonProps {

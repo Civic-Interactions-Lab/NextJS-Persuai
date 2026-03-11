@@ -42,15 +42,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { api } from "../../../../convex/_generated/api";
-import { ConversationId, MessageId } from "../../../../convex/types";
+import { Id } from "../../../../convex/_generated/dataModel";
+import {
+  ConversationId,
+  MessageId,
+} from "../../../../convex/types/convexTypes";
 import { useRouter } from "next/navigation";
-import { useGetConversationById } from "@/features/conversation/hooks/use-conversations";
+import {
+  useGetConversationById,
+  useUpdateConversation,
+} from "@/features/conversation/hooks/use-conversations";
 import { useUpdateMessageAgreement } from "@/features/conversation/hooks/use-messages";
+import { useGetActiveTopics } from "@/features/settings/hooks/use-topics";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import Logo from "@/components/logo";
-import { DEBATE_TOPICS } from "@/features/conversation/constants/topics";
-import { AI_AGENTS } from "@/features/conversation/constants/ai-agents";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -61,16 +67,19 @@ interface ConversationViewProps {
 const ConversationView = ({ conversationId }: ConversationViewProps) => {
   const router = useRouter();
   const [input, setInput] = useState("");
-  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+  const [selectedTopicId, setSelectedTopicId] = useState<Id<"topics"> | null>(
+    null,
+  );
   const [userStance, setUserStance] = useState("");
 
   const conversation = useGetConversationById(conversationId);
   const isComplete = conversation?.status === "complete";
 
+  const topics = useGetActiveTopics();
+  const selectedTopic = topics?.find((t) => t._id === selectedTopicId);
+
   const createMessage = useMutation(api.messages.createMessage);
-  const updateTopicAndAgent = useMutation(
-    api.conversations.updateTopicAndAgent,
-  );
+  const updateConversation = useUpdateConversation();
   const updateMessageAgreement = useUpdateMessageAgreement();
 
   useEffect(() => {
@@ -82,14 +91,11 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
   const messages = useQuery(api.messages.getMessages, { conversationId });
   const isProcessing = messages?.some((msg) => msg.status === "processing");
 
-  const selectedTopic = DEBATE_TOPICS.find((t) => t.id === selectedTopicId);
-
   const handleAgreement = async (
     messageId: MessageId,
     agreement: "agree" | "disagree" | "neutral",
   ) => {
     await updateMessageAgreement({ id: messageId, agreement });
-
     const agreementText = {
       agree: "I agree.",
       disagree: "I disagree.",
@@ -101,16 +107,10 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
   const handleStartDebate = async () => {
     if (!selectedTopic || !userStance.trim()) return;
 
-    const randomAgent = AI_AGENTS[Math.floor(Math.random() * AI_AGENTS.length)];
-
     try {
-      await updateTopicAndAgent({
+      await updateConversation({
         id: conversationId,
-        topic: selectedTopic.id,
-        topicPrompt: selectedTopic.prompt,
-        agentId: randomAgent.id,
-        agentName: randomAgent.name,
-        agentPosition: randomAgent.position,
+        topicId: selectedTopic._id,
       });
 
       await createMessage({
@@ -227,9 +227,9 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
                   <div className="space-y-2">
                     <Label htmlFor="topic-select">Debate Topic</Label>
                     <Select
-                      value={selectedTopicId || ""}
+                      value={selectedTopicId ?? ""}
                       onValueChange={(val) => {
-                        setSelectedTopicId(val);
+                        setSelectedTopicId(val as Id<"topics">);
                         setUserStance("");
                       }}
                     >
@@ -237,16 +237,16 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
                         <SelectValue placeholder="Choose a debate topic..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {DEBATE_TOPICS.map((topic) => (
-                          <SelectItem key={topic.id} value={topic.id}>
-                            {topic.label}
+                        {topics?.map((topic) => (
+                          <SelectItem key={topic._id} value={topic._id}>
+                            {topic.issue}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     {selectedTopic && (
                       <p className="text-sm text-muted-foreground">
-                        {selectedTopic.prompt}
+                        {selectedTopic.context}
                       </p>
                     )}
                   </div>

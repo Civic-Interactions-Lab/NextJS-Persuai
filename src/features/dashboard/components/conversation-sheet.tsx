@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/sheet";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { ConversationId } from "../../../../convex/types";
+import { ConversationId } from "../../../../convex/types/convexTypes";
 import {
   Loader2,
   CheckCircleIcon,
@@ -78,8 +78,12 @@ const ConversationSheet = ({
           {conversation && (
             <div className="space-y-1 text-sm text-muted-foreground">
               <p>ID: {conversation.externalId}</p>
-              {conversation.topic && <p>Topic: {conversation.topic}</p>}
-              {conversation.agentName && <p>Agent: {conversation.agentName}</p>}
+              {conversation.metadata?.topic?.label && (
+                <p>Topic: {conversation.metadata.topic.label}</p>
+              )}
+              {conversation.metadata?.agent?.name && (
+                <p>Agent: {conversation.metadata.agent.name}</p>
+              )}
             </div>
           )}
         </SheetHeader>

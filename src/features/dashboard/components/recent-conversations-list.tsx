@@ -3,7 +3,7 @@
 import { useGetConversations } from "@/features/conversation/hooks/use-conversations";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatTimeAgo } from "@/lib/utils";
-import { ConversationId } from "../../../../convex/types";
+import { ConversationId } from "../../../../convex/types/convexTypes";
 import { useState } from "react";
 import ConversationSheet from "./conversation-sheet";
 

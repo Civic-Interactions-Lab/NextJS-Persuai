@@ -25,7 +25,3 @@ export const useUpdateTopic = () => {
 export const useRemoveTopic = () => {
   return useMutation(api.topics.remove);
 };
-
-export const useSeedTopics = () => {
-  return useMutation(api.topics.seed);
-};

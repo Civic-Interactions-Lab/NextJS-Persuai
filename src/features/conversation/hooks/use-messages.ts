@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { ConversationId } from "../../../../convex/types";
+import { ConversationId } from "../../../../convex/types/convexTypes";
 
 export const useGetMessages = (conversationId: ConversationId) => {
   return useQuery(api.messages.getMessages, { conversationId });

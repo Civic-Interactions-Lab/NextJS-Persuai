@@ -17,7 +17,3 @@ export const useGetAgentById = (id: Id<"agents"> | null) => {
 export const useUpdateAgent = () => {
   return useMutation(api.agents.update);
 };
-
-export const useSeedAgents = () => {
-  return useMutation(api.agents.seed);
-};

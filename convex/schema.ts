@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { positionValidator } from "./types/convexTypes";
 
 export default defineSchema({
   // ── Conversations ──────────────────────────────────────────────────────────
@@ -21,18 +22,15 @@ export default defineSchema({
 
   agents: defineTable({
     name: v.string(),
-    position: v.union(
-      v.literal("agree"),
-      v.literal("disagree"),
-      v.literal("neutral"),
-    ),
+    position: positionValidator,
     description: v.string(),
     systemPrompt: v.string(),
   }).index("by_position", ["position"]),
 
   topics: defineTable({
-    label: v.string(),
-    prompt: v.string(),
+    title: v.string(),
+    issue: v.string(),
+    context: v.string(),
     isActive: v.optional(v.boolean()),
   }),
 

@@ -3,7 +3,7 @@
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useGetConversationById } from "@/features/conversation/hooks/use-conversations";
 import { usePathname } from "next/navigation";
-import { ConversationId } from "../../../../convex/types";
+import { ConversationId } from "../../../../convex/types/convexTypes";
 import { isValidConvexId } from "../../../../convex/utils";
 import FinishStudyButton from "@/features/conversation/components/finish-study-button";
 
