@@ -3,11 +3,11 @@ import { api } from "../../../../convex/_generated/api";
 
 export const useGetConsentForExternalId = (externalId: string | null) => {
   return useQuery(
-    api.consents.getConsentForExternalId,
+    api.db.consents.getConsentForExternalId,
     externalId ? { externalId } : "skip",
   );
 };
 
 export const useSubmitConsent = () => {
-  return useMutation(api.consents.submitConsent);
+  return useMutation(api.db.consents.submitConsent);
 };

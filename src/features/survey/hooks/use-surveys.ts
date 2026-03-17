@@ -3,18 +3,18 @@ import { api } from "../../../../convex/_generated/api";
 import { ConversationId } from "../../../../convex/types/convexTypes";
 
 export const useSubmitSurvey = () => {
-  return useMutation(api.survey.submitResponse);
+  return useMutation(api.db.survey.submitResponse);
 };
 
 export const useGetAllSurveyResponses = () => {
-  return useQuery(api.survey.getAllResponses);
+  return useQuery(api.db.survey.getAllResponses);
 };
 
 export const useGetSurveyResponsesByExternalId = (
   externalId: string | null,
 ) => {
   return useQuery(
-    api.survey.getResponsesByExternalId,
+    api.db.survey.getResponsesByExternalId,
     externalId ? { externalId } : "skip",
   );
 };
@@ -23,7 +23,7 @@ export const useGetSurveyResponsesByConversation = (
   conversationId: ConversationId | null,
 ) => {
   return useQuery(
-    api.survey.getResponsesByConversation,
+    api.db.survey.getResponsesByConversation,
     conversationId ? { conversationId } : "skip",
   );
 };

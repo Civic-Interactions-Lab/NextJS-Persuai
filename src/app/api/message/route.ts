@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     }
 
     const result = await convex.query(
-      api.conversations.getConversationWithAgentAndTopic,
+      api.db.conversations.getConversationWithAgentAndTopic,
       { id: conversationId as ConversationId },
     );
 
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
     const systemPrompt = `${agent.systemPrompt}\n\nDebate topic: "${topic.issue}"`;
 
-    const messages = await convex.query(api.messages.getMessages, {
+    const messages = await convex.query(api.db.messages.getMessages, {
       conversationId: conversationId as ConversationId,
     });
 
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
               ],
       });
 
-      await convex.mutation(api.messages.updateMessage, {
+      await convex.mutation(api.db.messages.updateMessage, {
         id: assistantMessageId as MessageId,
         content: text,
         status: "completed",
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
             prompt: `Topic: ${topic.issue}\n\nUser's first reply: ${userFirstReply.content}`,
           });
 
-          await convex.mutation(api.conversations.updateTitle, {
+          await convex.mutation(api.db.conversations.updateTitle, {
             id: conversationId as ConversationId,
             title: generatedTitle.trim(),
           });
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ response: text });
     } catch (error) {
-      await convex.mutation(api.messages.updateMessage, {
+      await convex.mutation(api.db.messages.updateMessage, {
         id: assistantMessageId as MessageId,
         status: "error",
       });

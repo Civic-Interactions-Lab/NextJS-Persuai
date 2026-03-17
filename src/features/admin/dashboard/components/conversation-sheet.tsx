@@ -7,8 +7,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useQuery } from "convex/react";
-import { api } from "../../../../../convex/_generated/api";
 import { ConversationId } from "../../../../../convex/types/convexTypes";
 import {
   Loader2,
@@ -37,6 +35,8 @@ import {
   Dot,
 } from "recharts";
 import { LIKERT_LABELS } from "@/features/survey/components/likert-scale";
+import { useGetConversationById } from "@/features/conversation/hooks/use-conversations";
+import { useGetMessages } from "@/features/conversation/hooks/use-messages";
 
 interface ConversationSheetProps {
   conversationId: ConversationId | null;
@@ -114,10 +114,8 @@ const AnalysisTab = ({
   agentPosition: string | undefined;
 }) => {
   const surveyResponses = useGetSurveyResponsesByConversation(conversationId);
-  const messages = useQuery(api.messages.getMessages, { conversationId });
-  const conversation = useQuery(api.conversations.getConversationById, {
-    id: conversationId,
-  });
+  const messages = useGetMessages(conversationId);
+  const conversation = useGetConversationById(conversationId);
   const topic = useGetTopicById(conversation?.topicId ?? null);
 
   if (!surveyResponses || !messages || !conversation || !topic) {
@@ -384,14 +382,8 @@ const ConversationSheet = ({
   open,
   onOpenChange,
 }: ConversationSheetProps) => {
-  const conversation = useQuery(
-    api.conversations.getConversationById,
-    conversationId ? { id: conversationId } : "skip",
-  );
-  const messages = useQuery(
-    api.messages.getMessages,
-    conversationId ? { conversationId } : "skip",
-  );
+  const conversation = useGetConversationById(conversationId);
+  const messages = useGetMessages(conversationId);
   const agent = useGetAgentById(conversation?.agentId ?? null);
 
   return (

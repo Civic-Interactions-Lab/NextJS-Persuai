@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import { positionValidator } from "./types/convexTypes";
+import { mutation, query } from "../_generated/server";
+import { positionValidator } from "../types/convexTypes";
 
 export const create = mutation({
   args: {

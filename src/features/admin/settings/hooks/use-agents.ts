@@ -3,17 +3,17 @@ import { api } from "../../../../../convex/_generated/api";
 import { AgentId } from "../../../../../convex/types/convexTypes";
 
 export const useCreateAgent = () => {
-  return useMutation(api.agents.create);
+  return useMutation(api.db.agents.create);
 };
 
 export const useGetAgents = () => {
-  return useQuery(api.agents.getAll);
+  return useQuery(api.db.agents.getAll);
 };
 
 export const useGetAgentById = (id: AgentId | null) => {
-  return useQuery(api.agents.getById, id ? { id } : "skip");
+  return useQuery(api.db.agents.getById, id ? { id } : "skip");
 };
 
 export const useUpdateAgent = () => {
-  return useMutation(api.agents.update);
+  return useMutation(api.db.agents.update);
 };

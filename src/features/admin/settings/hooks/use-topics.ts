@@ -3,21 +3,21 @@ import { api } from "../../../../../convex/_generated/api";
 import { TopicId } from "../../../../../convex/types/convexTypes";
 
 export const useGetTopics = () => {
-  return useQuery(api.topics.getAll);
+  return useQuery(api.db.topics.getAll);
 };
 
 export const useGetTopicById = (id: TopicId | null) => {
-  return useQuery(api.topics.getById, id ? { id } : "skip");
+  return useQuery(api.db.topics.getById, id ? { id } : "skip");
 };
 
 export const useCreateTopic = () => {
-  return useMutation(api.topics.create);
+  return useMutation(api.db.topics.create);
 };
 
 export const useUpdateTopic = () => {
-  return useMutation(api.topics.update);
+  return useMutation(api.db.topics.update);
 };
 
 export const useRemoveTopic = () => {
-  return useMutation(api.topics.remove);
+  return useMutation(api.db.topics.remove);
 };
