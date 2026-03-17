@@ -3,28 +3,31 @@ import { api } from "../../../../convex/_generated/api";
 import { ConversationId } from "../../../../convex/types/convexTypes";
 
 export const useGetConversations = () => {
-  return useQuery(api.conversations.getConversations);
+  return useQuery(api.db.conversations.getConversations);
 };
 
 export const useGetConversationById = (id: ConversationId | null) => {
-  return useQuery(api.conversations.getConversationById, id ? { id } : "skip");
+  return useQuery(
+    api.db.conversations.getConversationById,
+    id ? { id } : "skip",
+  );
 };
 
 export const useGetConversationForExternalId = (externalId: string | null) => {
   return useQuery(
-    api.conversations.getConversationForExternalId,
+    api.db.conversations.getConversationForExternalId,
     externalId ? { externalId } : "skip",
   );
 };
 
 export const useCreateConversation = () => {
-  return useMutation(api.conversations.createConversation);
+  return useMutation(api.db.conversations.createConversation);
 };
 
 export const useUpdateTitle = () => {
-  return useMutation(api.conversations.updateTitle);
+  return useMutation(api.db.conversations.updateTitle);
 };
 
 export const useUpdateConversation = () => {
-  return useMutation(api.conversations.update);
+  return useMutation(api.db.conversations.update);
 };

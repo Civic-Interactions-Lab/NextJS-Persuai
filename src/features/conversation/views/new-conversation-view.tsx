@@ -4,22 +4,18 @@ import { Button } from "@/components/ui/button";
 import Logo from "@/components/logo";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import NewConversationDialog from "@/features/conversation/components/new-conversation-dialog";
 import ConsentDialog from "@/features/conversation/components/consent-dialog";
-import { toast } from "sonner";
+import {
+  NewConversationDialog,
+  NoProlificDialog,
+  CompletedStudyDialog,
+  OptedOutDialog,
+} from "@/features/conversation/components/conversation-dialogs";
 import { useGetConsentForExternalId } from "@/features/conversation/hooks/use-consents";
 import {
   useGetParticipantByExternalId,
   useUpsertParticipant,
 } from "@/features/conversation/hooks/use-participants";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useGetConversationForExternalId } from "@/features/conversation/hooks/use-conversations";
 import { Loader2Icon } from "lucide-react";
 
@@ -38,6 +34,7 @@ const NewConversationView = ({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [isCreatingParticipant, setIsCreatingParticipant] = useState(false);
+  const [externalId, setExternalId] = useState<string | null>(null);
 
   useEffect(() => {
     if (prolificPid) {
@@ -47,8 +44,9 @@ const NewConversationView = ({
     }
   }, [prolificPid, studyId, sessionId]);
 
-  const externalId =
-    typeof window !== "undefined" ? localStorage.getItem("PROLIFIC_PID") : null;
+  useEffect(() => {
+    setExternalId(localStorage.getItem("PROLIFIC_PID"));
+  }, []);
 
   const consent = useGetConsentForExternalId(externalId);
   const hasConsented = consent?.consented === true;
@@ -57,46 +55,49 @@ const NewConversationView = ({
   const upsertParticipant = useUpsertParticipant();
 
   useEffect(() => {
-    if (participant === null && externalId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (participant !== null || !externalId) return;
+    let cancelled = false;
+    const create = async () => {
       setIsCreatingParticipant(true);
-      upsertParticipant({ externalId, status: "pending" }).finally(() =>
-        setIsCreatingParticipant(false),
-      );
-    }
+      try {
+        await upsertParticipant({ externalId, status: "pending" });
+      } finally {
+        if (!cancelled) setIsCreatingParticipant(false);
+      }
+    };
+    create();
+    return () => {
+      cancelled = true;
+    };
   }, [participant, externalId, upsertParticipant]);
 
   const currentConversation = useGetConversationForExternalId(externalId);
 
   const isLoading =
-    consent === undefined || participant === undefined || isCreatingParticipant;
+    !!externalId &&
+    (consent === undefined ||
+      participant === undefined ||
+      isCreatingParticipant);
+
+  const status = participant?.status;
 
   const handleGetStarted = () => {
-    const pid = localStorage.getItem("PROLIFIC_PID");
-    if (!pid) {
-      toast.error(
-        "No Participant ID found. Please access this study through Prolific.",
-      );
-      return;
-    }
-
-    const status = participant?.status;
-
-    if (status === "completed" || status === "partial") {
+    if (!externalId) {
       setStatusDialogOpen(true);
       return;
     }
-
-    if (status === "opted_out") {
+    if (
+      status === "completed" ||
+      status === "partial" ||
+      status === "opted_out"
+    ) {
       setStatusDialogOpen(true);
       return;
     }
-
     if (status === "active" && currentConversation) {
       router.push(`/conversations/${currentConversation._id}`);
       return;
     }
-
     setDialogOpen(true);
   };
 
@@ -105,124 +106,88 @@ const NewConversationView = ({
     router.push("/survey?type=pre");
   };
 
-  const status = participant?.status;
-
-  const renderStatusDialog = () => {
-    if (status === "completed" || status === "partial") {
-      return (
-        <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>You have already completed the study</DialogTitle>
-              <DialogDescription>
-                You have already gone through the study. You can view your
-                previous conversation below.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setStatusDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              {currentConversation && (
-                <Button
-                  onClick={() => {
-                    setStatusDialogOpen(false);
-                    router.push(`/conversations/${currentConversation._id}`);
-                  }}
-                >
-                  View Conversation
-                </Button>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      );
-    }
-
-    if (status === "opted_out") {
-      return (
-        <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>You have opted out of this study</DialogTitle>
-              <DialogDescription>
-                You previously chose to exit this study and are no longer able
-                to participate. You can view the debriefing information below.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setStatusDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  setStatusDialogOpen(false);
-                  router.push("/debriefing");
-                }}
-              >
-                View Debriefing
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      );
-    }
-
-    return null;
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-2">
-        <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Loading...</p>
+  const LandingContent = (
+    <div className="flex items-start justify-center h-full pt-[32vh]">
+      <div className="w-full max-w-md px-4 space-y-8 text-center">
+        <div className="space-y-4">
+          <div className="flex items-center justify-center gap-3">
+            <Logo size={40} />
+          </div>
+          <p className="text-lg text-muted-foreground">
+            Challenge yourself to persuade an AI
+          </p>
+        </div>
+        <Button
+          size="lg"
+          className="w-full"
+          onClick={handleGetStarted}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <div className="flex items-center gap-2">
+              <Loader2Icon className="size-4 animate-spin" />
+              <span>Loading...</span>
+            </div>
+          ) : (
+            "Get Started"
+          )}
+        </Button>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <>
-      {externalId &&
-        consent !== undefined &&
-        !hasConsented &&
-        status === "pending" && <ConsentDialog externalId={externalId} />}
+      {!externalId ? (
+        <>
+          {LandingContent}
+          <NoProlificDialog
+            open={statusDialogOpen}
+            onOpenChange={setStatusDialogOpen}
+          />
+        </>
+      ) : (
+        <>
+          {externalId &&
+            consent !== undefined &&
+            !hasConsented &&
+            status === "pending" && <ConsentDialog externalId={externalId} />}
 
-      <NewConversationDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onConfirm={handleConsentConfirm}
-      />
+          <NewConversationDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            onConfirm={handleConsentConfirm}
+          />
 
-      {renderStatusDialog()}
+          {(status === "completed" || status === "partial") && (
+            <CompletedStudyDialog
+              open={statusDialogOpen}
+              onOpenChange={setStatusDialogOpen}
+              onViewConversation={
+                currentConversation
+                  ? () => {
+                      setStatusDialogOpen(false);
+                      router.push(`/conversations/${currentConversation._id}`);
+                    }
+                  : undefined
+              }
+            />
+          )}
 
-      <div className="flex items-start justify-center h-full pt-[32vh]">
-        <div className="w-full max-w-md px-4 space-y-8 text-center">
-          <div className="space-y-4">
-            <div className="flex items-center justify-center gap-3">
-              <Logo size={40} />
-            </div>
-            <p className="text-lg text-muted-foreground">
-              Challenge yourself to persuade an AI
-            </p>
-          </div>
+          {status === "opted_out" && (
+            <OptedOutDialog
+              open={statusDialogOpen}
+              onOpenChange={setStatusDialogOpen}
+              onViewDebriefing={() => {
+                setStatusDialogOpen(false);
+                router.push("/debriefing");
+              }}
+            />
+          )}
 
-          <Button
-            size="lg"
-            className="w-full"
-            onClick={handleGetStarted}
-            disabled={isLoading}
-          >
-            Get Started
-          </Button>
-        </div>
-      </div>
+          {LandingContent}
+        </>
+      )}
     </>
   );
 };

@@ -8,13 +8,13 @@
  * @module
  */
 
-import type * as agents from "../agents.js";
-import type * as consents from "../consents.js";
-import type * as conversations from "../conversations.js";
+import type * as db_agents from "../db/agents.js";
+import type * as db_consents from "../db/consents.js";
+import type * as db_conversations from "../db/conversations.js";
+import type * as db_messages from "../db/messages.js";
 import type * as db_participants from "../db/participants.js";
-import type * as messages from "../messages.js";
-import type * as survey from "../survey.js";
-import type * as topics from "../topics.js";
+import type * as db_survey from "../db/survey.js";
+import type * as db_topics from "../db/topics.js";
 import type * as types_convexTypes from "../types/convexTypes.js";
 import type * as types_participantTypes from "../types/participantTypes.js";
 import type * as types_surveyTypes from "../types/surveyTypes.js";
@@ -27,13 +27,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  agents: typeof agents;
-  consents: typeof consents;
-  conversations: typeof conversations;
+  "db/agents": typeof db_agents;
+  "db/consents": typeof db_consents;
+  "db/conversations": typeof db_conversations;
+  "db/messages": typeof db_messages;
   "db/participants": typeof db_participants;
-  messages: typeof messages;
-  survey: typeof survey;
-  topics: typeof topics;
+  "db/survey": typeof db_survey;
+  "db/topics": typeof db_topics;
   "types/convexTypes": typeof types_convexTypes;
   "types/participantTypes": typeof types_participantTypes;
   "types/surveyTypes": typeof types_surveyTypes;
