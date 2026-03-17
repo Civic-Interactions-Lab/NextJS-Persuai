@@ -23,29 +23,38 @@ import {
   useGetMessages,
   useUpdateMessageAgreement,
 } from "@/features/conversation/hooks/use-messages";
-import { useGetActiveTopics } from "@/features/settings/hooks/use-topics";
 import StartDebateForm from "@/features/conversation/components/start-debate-form";
 import ConversationInput from "@/features/conversation/components/conversation-input";
 import MessageList from "@/features/conversation/components/message-list";
+import { useGetParticipantByExternalId } from "@/features/conversation/hooks/use-participants";
 
 interface ConversationViewProps {
   conversationId: ConversationId;
+  topicStance?: string;
 }
 
-const ConversationView = ({ conversationId }: ConversationViewProps) => {
+const ConversationView = ({
+  conversationId,
+  topicStance,
+}: ConversationViewProps) => {
   const router = useRouter();
   const [input, setInput] = useState("");
 
   const conversation = useGetConversationById(conversationId);
-  const isComplete = conversation?.status === "complete";
+  const externalId =
+    typeof window !== "undefined" ? localStorage.getItem("PROLIFIC_PID") : null;
 
-  const topics = useGetActiveTopics();
+  const participant = useGetParticipantByExternalId(externalId);
+  const isLocked =
+    participant?.status === "completed" || participant?.status === "partial";
+
   const createMessage = useCreateMessage();
   const updateConversation = useUpdateConversation();
   const updateMessageAgreement = useUpdateMessageAgreement();
 
   useEffect(() => {
-    if (conversation === null) router.push("/");
+    if (conversation === null || conversation?.topicId === null)
+      router.push("/");
   }, [conversation, router]);
 
   const messages = useGetMessages(conversationId);
@@ -62,13 +71,13 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
     await updateMessageAgreement({ id: messageId, agreement });
   };
 
-  const handleStartDebate = async (topicId: TopicId, stance: string) => {
+  const handleStartDebate = async (topicId: TopicId, issue: string) => {
     try {
       await updateConversation({ id: conversationId, topicId });
       await createMessage({
         conversationId,
         role: "user",
-        content: stance,
+        content: issue,
         status: "completed",
       });
       const assistantMessageId = await createMessage({
@@ -83,7 +92,7 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
         body: JSON.stringify({
           conversationId,
           assistantMessageId,
-          message: stance,
+          message: issue,
         }),
       }).catch((error) => console.error("Error:", error));
     } catch (error) {
@@ -133,7 +142,11 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
               </div>
             </div>
           ) : messages.length === 0 ? (
-            <StartDebateForm topics={topics} onStart={handleStartDebate} />
+            <StartDebateForm
+              onStart={handleStartDebate}
+              preSelectedTopicId={conversation?.topicId}
+              preSelectedStance={topicStance}
+            />
           ) : (
             <MessageList messages={messages} onAgreement={handleAgreement} />
           )}
@@ -143,7 +156,7 @@ const ConversationView = ({ conversationId }: ConversationViewProps) => {
 
       {messages &&
         messages.length > 0 &&
-        (isComplete ? (
+        (isLocked ? (
           <div className="p-4 pb-8">
             <div className="flex items-center justify-center rounded-lg border bg-muted/50 px-4 py-3 text-xs sm:text-sm text-muted-foreground text-center">
               This conversation has ended.

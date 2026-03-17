@@ -7,6 +7,8 @@ const MostPickedTopicSection = () => {
   const conversations = useGetConversations();
   const topics = useGetTopics();
 
+  if (!topics) return null;
+
   const topicCounts =
     conversations?.reduce(
       (acc, conv) => {
@@ -27,8 +29,8 @@ const MostPickedTopicSection = () => {
       entry[1] > max[1] ? entry : max,
     );
     mostPopularTopicId = topicId;
-    const topic = topics?.find((t) => t._id === topicId);
-    mostPopularTopic = topic?.title || topicId;
+    const topic = topics.find((t) => t._id === topicId);
+    mostPopularTopic = topic?.issue ?? "Unknown topic";
   }
 
   const maxCount = Math.max(...Object.values(topicCounts), 1);

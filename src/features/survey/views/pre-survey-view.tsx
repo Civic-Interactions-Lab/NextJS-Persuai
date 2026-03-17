@@ -16,81 +16,46 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { LoaderIcon } from "lucide-react";
 import { toast } from "sonner";
 import { PRE_SURVEY_QUESTIONS } from "@/features/survey/constants/pre-survey-questions";
-import { cn } from "@/lib/utils";
+import { TopicId } from "../../../../convex/types/convexTypes";
+import { useGetTopics } from "@/features/settings/hooks/use-topics";
+import LikertScale from "@/features/survey/components/likert-scale";
+import {
+  INITIAL_TITLE,
+  ROUND_COUNT,
+} from "@/features/conversation/constants/ai-agents";
+import { useUpsertParticipant } from "@/features/conversation/hooks/use-participants";
 
 const formSchema = z.object({
   participantId: z.string().min(1, "Participant ID is required"),
   aiTrust: z.string().min(1, "Required"),
   aiPotential: z.string().min(1, "Required"),
   politicalOrientation: z.string().optional(),
-  topic1L: z.string().min(1, "Required"),
-  topic1R: z.string().min(1, "Required"),
-  topic2L: z.string().min(1, "Required"),
-  topic2R: z.string().min(1, "Required"),
-  topic3L: z.string().min(1, "Required"),
-  topic3R: z.string().min(1, "Required"),
-  topic4L: z.string().min(1, "Required"),
-  topic4R: z.string().min(1, "Required"),
+  selectedTopicId: z.string().min(1, "Please select a topic"),
+  topicStance: z
+    .string()
+    .min(1, "Please rate your stance on the selected topic"),
 });
 
 export type PreSurveyFormData = z.infer<typeof formSchema>;
-
-const LikertScale = ({
-  value,
-  onChange,
-  min,
-  max,
-  minLabel,
-  maxLabel,
-}: {
-  value: string;
-  onChange: (val: string) => void;
-  min: number;
-  max: number;
-  minLabel: string;
-  maxLabel: string;
-}) => {
-  const steps = Array.from({ length: max - min + 1 }, (_, i) => min + i);
-  return (
-    <div className="py-2 space-y-2">
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] sm:text-xs text-muted-foreground shrink-0 w-16 text-right">
-          {minLabel}
-        </span>
-        <div className="flex flex-1 justify-between lg:px-6">
-          {steps.map((step) => (
-            <button
-              key={step}
-              type="button"
-              onClick={() => onChange(String(step))}
-              className={cn(
-                "size-7 sm:size-9 rounded-full border-2 text-xs sm:text-sm font-medium transition-colors",
-                value === String(step)
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-background hover:bg-accent border-input",
-              )}
-            >
-              {step}
-            </button>
-          ))}
-        </div>
-        <span className="text-[10px] sm:text-xs text-muted-foreground shrink-0 w-16 text-left">
-          {maxLabel}
-        </span>
-      </div>
-    </div>
-  );
-};
 
 const PreSurveyView = () => {
   const router = useRouter();
   const createConversation = useCreateConversation();
   const submitSurvey = useSubmitSurvey();
+  const topics = useGetTopics();
+  const upsertParticipant = useUpsertParticipant();
 
   const form = useForm<PreSurveyFormData>({
     resolver: zodResolver(formSchema),
@@ -99,14 +64,8 @@ const PreSurveyView = () => {
       aiTrust: "",
       aiPotential: "",
       politicalOrientation: "",
-      topic1L: "",
-      topic1R: "",
-      topic2L: "",
-      topic2R: "",
-      topic3L: "",
-      topic3R: "",
-      topic4L: "",
-      topic4R: "",
+      selectedTopicId: "",
+      topicStance: "",
     },
   });
 
@@ -114,6 +73,9 @@ const PreSurveyView = () => {
     const pid = localStorage.getItem("PROLIFIC_PID") ?? crypto.randomUUID();
     form.setValue("participantId", pid);
   }, [form]);
+
+  const selectedTopicId = form.watch("selectedTopicId");
+  const selectedTopic = topics?.find((t) => t._id === selectedTopicId);
 
   const onSubmit = async (data: PreSurveyFormData) => {
     try {
@@ -126,7 +88,8 @@ const PreSurveyView = () => {
         externalId,
         externalStudyId,
         externalSessionId,
-        title: "New Conversation",
+        title: INITIAL_TITLE,
+        topicId: data.selectedTopicId as TopicId,
       });
 
       await submitSurvey({
@@ -141,7 +104,11 @@ const PreSurveyView = () => {
           })),
       });
 
-      router.replace(`/conversations/${conversationId}`);
+      await upsertParticipant({ externalId, status: "active" });
+
+      router.replace(
+        `/conversations/${conversationId}?stance=${data.topicStance}`,
+      );
     } catch (error) {
       console.error("Failed to submit survey:", error);
       toast.error("Failed to submit survey. Please try again.");
@@ -158,9 +125,8 @@ const PreSurveyView = () => {
             Pre-Activity Survey
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Welcome! In this section, you will be asked 2 questions about the
-            trust and potential of AI in question answering. Please choose one
-            starter topic below.
+            Welcome! Please answer 2 questions about AI and then pick one topic
+            you will be debating.
           </p>
           <p className="text-sm sm:text-base text-muted-foreground">
             There will be no personal information collected in this survey, and
@@ -173,13 +139,13 @@ const PreSurveyView = () => {
         </p>
 
         <div className="rounded-lg border bg-card shadow-sm">
-          <div className="p-4 sm:p-6 md:p-8">
+          <div className="py-2 sm:py-4 md:py-6">
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-5 sm:space-y-8"
               >
-                {/* Participant ID - auto-filled, disabled */}
+                {/* Participant ID */}
                 <FormField
                   control={form.control}
                   name="participantId"
@@ -288,61 +254,80 @@ const PreSurveyView = () => {
                   )}
                 />
 
-                {/* Topic Questions */}
+                {/* Topic Selection */}
                 <div className="space-y-1 sm:space-y-2 pt-2 border-t">
                   <p className="text-sm sm:text-base font-medium pt-3 sm:pt-4">
-                    Please rate your agreement with the following topics. You
-                    will be engaging in a discussion for 30 rounds based on the
-                    topic you pick.
+                    Pick one topic you will be debating for {ROUND_COUNT}{" "}
+                    rounds.
                   </p>
                   <p className="text-xs sm:text-sm text-muted-foreground">
-                    Scale: 1 = Strongly Agree, 7 = Strongly Disagree
+                    After selecting a topic, rate your initial agreement (1 =
+                    Strongly Disagree, 7 = Strongly Agree).
                   </p>
                 </div>
 
-                {(
-                  [
-                    "topic1L",
-                    "topic1R",
-                    "topic2L",
-                    "topic2R",
-                    "topic3L",
-                    "topic3R",
-                    "topic4L",
-                    "topic4R",
-                  ] as const
-                ).map((key) => {
-                  const question = q[key];
-                  return (
-                    <FormField
-                      key={key}
-                      control={form.control}
-                      name={key}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm sm:text-base mt-2">
-                            {question.label}
-                            <span className="text-destructive ml-1">*</span>
-                          </FormLabel>
-                          <p className="text-xs sm:text-sm text-muted-foreground">
-                            How do you agree or disagree with this topic?
-                          </p>
-                          <FormControl>
-                            <LikertScale
-                              value={field.value}
-                              onChange={field.onChange}
-                              min={question.min}
-                              max={question.max}
-                              minLabel={question.minLabel}
-                              maxLabel={question.maxLabel}
+                <FormField
+                  control={form.control}
+                  name="selectedTopicId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm sm:text-base">
+                        Select a Debate Topic
+                        <span className="text-destructive ml-1">*</span>
+                      </FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={(val) => {
+                          field.onChange(val);
+                          form.setValue("topicStance", "");
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="h-10 sm:h-11 w-full overflow-hidden">
+                            <SelectValue
+                              placeholder="Choose a debate topic..."
+                              className="truncate"
                             />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  );
-                })}
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {topics?.map((topic) => (
+                            <SelectItem key={topic._id} value={topic._id}>
+                              {topic.issue}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Stance on selected topic */}
+                {selectedTopic && (
+                  <FormField
+                    control={form.control}
+                    name="topicStance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm sm:text-base">
+                          How much do you agree with this topic?
+                          <span className="text-destructive ml-1">*</span>
+                        </FormLabel>
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                          Scale: 1 = Strongly Disagree, 7 = Strongly Agree
+                        </p>
+                        <FormControl>
+                          <LikertScale
+                            value={field.value}
+                            onChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <div className="pt-6 flex justify-center">
                   <Button

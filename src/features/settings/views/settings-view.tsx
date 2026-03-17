@@ -26,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { PlusIcon, LoaderIcon } from "lucide-react";
 import {
   useGetTopics,
@@ -45,8 +44,6 @@ import {
   Topic,
 } from "../../../../convex/types/convexTypes";
 
-// ── Topic Sheet ────────────────────────────────────────────────────────────
-
 const TopicSheet = ({
   topic,
   open,
@@ -64,25 +61,21 @@ const TopicSheet = ({
   const [deleting, setDeleting] = useState(false);
   const [title, setTitle] = useState(topic?.title ?? "");
   const [issue, setIssue] = useState(topic?.issue ?? "");
-  const [context, setContext] = useState(topic?.context ?? "");
-  const [isActive, setIsActive] = useState(topic?.isActive ?? true);
 
   React.useEffect(() => {
     if (open) {
       setTitle(topic?.title ?? "");
       setIssue(topic?.issue ?? "");
-      setContext(topic?.context ?? "");
-      setIsActive(topic?.isActive ?? true);
     }
   }, [topic, open]);
 
   const handleSave = async () => {
-    if (!title.trim() || !issue.trim() || !context.trim()) return;
+    if (!title.trim() || !issue.trim()) return;
     setSaving(true);
     if (topic) {
-      await updateTopic({ id: topic._id, title, issue, context, isActive });
+      await updateTopic({ id: topic._id, title, issue });
     } else {
-      await createTopic({ title, issue, context, isActive });
+      await createTopic({ title, issue });
     }
     setSaving(false);
     onOpenChange(false);
@@ -115,39 +108,18 @@ const TopicSheet = ({
 
           <div className="space-y-2">
             <Label>Issue</Label>
-            <Input
+            <Textarea
               value={issue}
               onChange={(e) => setIssue(e.target.value)}
               placeholder="e.g. Should free speech be protected even when it offends others?"
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Context</Label>
-            <Textarea
-              value={context}
-              onChange={(e) => setContext(e.target.value)}
-              placeholder="Background information about this topic..."
-              className="min-h-[300px] resize-none"
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Switch
-              checked={isActive}
-              onCheckedChange={setIsActive}
-              id="topic-active"
-            />
-            <Label htmlFor="topic-active">Active</Label>
           </div>
         </div>
 
         <div className="flex flex-col gap-2 pt-6 border-t mt-6">
           <Button
             onClick={handleSave}
-            disabled={
-              saving || !title.trim() || !issue.trim() || !context.trim()
-            }
+            disabled={saving || !title.trim() || !issue.trim()}
           >
             {saving ? (
               <div className="flex items-center gap-2">
@@ -182,8 +154,6 @@ const TopicSheet = ({
   );
 };
 
-// ── Agent Sheet ────────────────────────────────────────────────────────────
-
 const AgentSheet = ({
   agent,
   open,
@@ -198,7 +168,7 @@ const AgentSheet = ({
 
   const [name, setName] = useState(agent?.name ?? "");
   const [position, setPosition] = useState<AgentPosition>(
-    agent?.position ?? "neutral",
+    agent?.position ?? "non_manipulative",
   );
   const [description, setDescription] = useState(agent?.description ?? "");
   const [systemPrompt, setSystemPrompt] = useState(agent?.systemPrompt ?? "");
@@ -207,7 +177,7 @@ const AgentSheet = ({
   React.useEffect(() => {
     if (open) {
       setName(agent?.name ?? "");
-      setPosition(agent?.position ?? "neutral");
+      setPosition(agent?.position ?? "non_manipulative");
       setDescription(agent?.description ?? "");
       setSystemPrompt(agent?.systemPrompt ?? "");
     }
@@ -244,7 +214,7 @@ const AgentSheet = ({
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. The Advocate"
+              placeholder="e.g. Non Manipulative"
             />
           </div>
 
@@ -255,13 +225,18 @@ const AgentSheet = ({
               onValueChange={(v) => setPosition(v as AgentPosition)}
             >
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue placeholder="e.g. Non Manipulative" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="agree">Agree</SelectItem>
-                <SelectItem value="disagree">Disagree</SelectItem>
-                <SelectItem value="neutral">Neutral</SelectItem>
-                <SelectItem value="manipulative">Manipulative</SelectItem>
+                <SelectItem value="non_manipulative">
+                  Non Manipulative
+                </SelectItem>
+                <SelectItem value="manipulative_left">
+                  Manipulative Left
+                </SelectItem>
+                <SelectItem value="manipulative_right">
+                  Manipulative Right
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -308,8 +283,6 @@ const AgentSheet = ({
     </Sheet>
   );
 };
-
-// ── Main View ──────────────────────────────────────────────────────────────
 
 const SettingsView = () => {
   const topics = useGetTopics();
@@ -393,16 +366,14 @@ const SettingsView = () => {
                       <TableCell>
                         <span
                           className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
-                            agent.position === "agree"
+                            agent.position === "non_manipulative"
                               ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
-                              : agent.position === "disagree"
-                                ? "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
-                                : agent.position === "manipulative"
-                                  ? "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400"
-                                  : "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400"
+                              : agent.position === "manipulative_left"
+                                ? "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
+                                : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
                           }`}
                         >
-                          {agent.position}
+                          {agent.position.replace(/_/g, " ")}
                         </span>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell text-muted-foreground">
@@ -437,7 +408,6 @@ const SettingsView = () => {
                 <TableRow>
                   <TableHead>Title</TableHead>
                   <TableHead className="hidden sm:table-cell">Issue</TableHead>
-                  <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -462,17 +432,6 @@ const SettingsView = () => {
                       </TableCell>
                       <TableCell className="hidden sm:table-cell text-muted-foreground max-w-xs truncate">
                         {topic.issue}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                            topic.isActive
-                              ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          {topic.isActive ? "Active" : "Inactive"}
-                        </span>
                       </TableCell>
                     </TableRow>
                   ))

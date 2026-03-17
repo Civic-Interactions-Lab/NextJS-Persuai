@@ -24,8 +24,16 @@ import { LoaderIcon } from "lucide-react";
 import { useSubmitConsent } from "@/features/conversation/hooks/use-consents";
 import Link from "next/link";
 import { CONSENT_CONTENT } from "@/features/conversation/constants/consent-content";
+import { useUpsertParticipant } from "@/features/conversation/hooks/use-participants";
+import { generateSubmissionCode } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
-const ConsentDialog = () => {
+interface ConsentDialogProps {
+  externalId: string;
+}
+
+const ConsentDialog = ({ externalId }: ConsentDialogProps) => {
+  const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [checked, setChecked] = useState(true);
   const [alertOpen, setAlertOpen] = useState(false);
@@ -33,8 +41,7 @@ const ConsentDialog = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const submitConsent = useSubmitConsent();
 
-  const externalId =
-    typeof window !== "undefined" ? localStorage.getItem("PROLIFIC_PID") : null;
+  const upsertParticipant = useUpsertParticipant();
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
@@ -53,8 +60,16 @@ const ConsentDialog = () => {
     setSubmitting(false);
   };
 
-  const handleDecline = () => {
-    window.location.href = "https://app.prolific.com/";
+  const handleDecline = async () => {
+    if (externalId) {
+      const submissionCode = generateSubmissionCode();
+      await upsertParticipant({
+        externalId,
+        status: "opted_out",
+        submissionCode,
+      });
+    }
+    router.push("/debriefing");
   };
 
   return (

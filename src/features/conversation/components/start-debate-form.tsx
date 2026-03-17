@@ -1,29 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import Logo from "@/components/logo";
-import { Topic, TopicId } from "../../../../convex/types/convexTypes";
+import { TopicId } from "../../../../convex/types/convexTypes";
+import { useGetTopicById } from "@/features/settings/hooks/use-topics";
+import { LIKERT_LABELS } from "@/features/survey/components/likert-scale";
 
 interface StartDebateFormProps {
-  topics: Topic[] | undefined;
-  onStart: (topicId: TopicId, stance: string) => void;
+  onStart: (topicId: TopicId, issue: string) => void;
+  preSelectedTopicId?: TopicId;
+  preSelectedStance?: string;
 }
 
-const StartDebateForm = ({ topics, onStart }: StartDebateFormProps) => {
-  const [selectedTopicId, setSelectedTopicId] = useState<TopicId | null>(null);
-  const [userStance, setUserStance] = useState("");
-
-  const selectedTopic = topics?.find((t) => t._id === selectedTopicId);
+const StartDebateForm = ({
+  onStart,
+  preSelectedTopicId,
+  preSelectedStance,
+}: StartDebateFormProps) => {
+  const selectedTopic = useGetTopicById(preSelectedTopicId ?? null);
 
   return (
     <div className="flex items-start justify-center pt-[20vh]">
@@ -32,65 +26,45 @@ const StartDebateForm = ({ topics, onStart }: StartDebateFormProps) => {
           <div className="flex items-center justify-center gap-3 mb-3">
             <Logo size={30} />
           </div>
-          <p className="text-muted-foreground">
-            Choose a topic to start your debate
-          </p>
         </div>
 
         <div className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="topic-select">Debate Topic</Label>
-            <Select
-              value={selectedTopicId ?? ""}
-              onValueChange={(val) => {
-                setSelectedTopicId(val as TopicId);
-                setUserStance("");
-              }}
-            >
-              <SelectTrigger id="topic-select">
-                <SelectValue placeholder="Choose a debate topic..." />
-              </SelectTrigger>
-              <SelectContent>
-                {topics?.map((topic) => (
-                  <SelectItem key={topic._id} value={topic._id}>
-                    {topic.issue}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedTopic && (
-              <p className="text-sm text-muted-foreground">
-                {selectedTopic.context}
-              </p>
-            )}
-          </div>
-
           {selectedTopic && (
-            <div className="space-y-2">
-              <Label htmlFor="user-stance">Your Opening Statement</Label>
-              <Textarea
-                id="user-stance"
-                value={userStance}
-                onChange={(e) => setUserStance(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (selectedTopicId && userStance.trim()) {
-                      onStart(selectedTopicId, userStance.trim());
-                    }
-                  }
-                }}
-                placeholder="Share your initial thoughts or stance on this topic..."
-                className="min-h-[100px] resize-none"
-              />
+            <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-2">
+                  Topic
+                </p>
+                <p className="text-sm sm:text-base font-medium">
+                  {selectedTopic.issue}
+                </p>
+              </div>
+
+              {preSelectedStance && (
+                <div className="flex items-center gap-2 pt-1 border-t">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    Your stance is{" "}
+                    <span className="font-semibold text-foreground">
+                      {preSelectedStance} — {LIKERT_LABELS[preSelectedStance]}
+                    </span>{" "}
+                    towards this topic.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
+          <p className="text-sm text-muted-foreground text-center">
+            Start the conversation whenever you&apos;re ready.
+          </p>
+
           <Button
             onClick={() =>
-              selectedTopicId && onStart(selectedTopicId, userStance.trim())
+              preSelectedTopicId &&
+              selectedTopic &&
+              onStart(preSelectedTopicId, selectedTopic.issue)
             }
-            disabled={!selectedTopicId || !userStance.trim()}
+            disabled={!preSelectedTopicId || !selectedTopic}
             className="w-full"
           >
             Start Debate

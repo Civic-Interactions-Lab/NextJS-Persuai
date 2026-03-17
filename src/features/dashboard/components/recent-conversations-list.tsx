@@ -64,15 +64,6 @@ const RecentConversationsList = () => {
                       <span className="text-xs text-muted-foreground max-w-[80px] text-right leading-tight">
                         {formatTimeAgo(conversation.updatedAt)}
                       </span>
-                      <span
-                        className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
-                          conversation.status === "complete"
-                            ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
-                            : "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400"
-                        }`}
-                      >
-                        {conversation.status}
-                      </span>
                     </div>
                   </button>
                 ))}
