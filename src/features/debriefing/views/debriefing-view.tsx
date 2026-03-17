@@ -36,7 +36,10 @@ const DebriefingView = () => {
               <HeartHandshakeIcon className="size-8 text-primary" />
             </div>
           </div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-wider uppercase">
+            Debrief
+          </h1>
+          <h1 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
             {DEBRIEFING_CONTENT.title}
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground">

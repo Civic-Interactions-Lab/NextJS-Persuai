@@ -19,8 +19,7 @@ import { LoaderIcon } from "lucide-react";
 import { toast } from "sonner";
 import { POST_SURVEY_QUESTIONS } from "@/features/survey/constants/post-survey-questions";
 import { cn } from "@/lib/utils";
-import { Id } from "../../../../convex/_generated/dataModel";
-import { useCompleteConversation } from "@/features/conversation/hooks/use-conversations";
+import { ConversationId } from "../../../../convex/types/convexTypes";
 
 const formSchema = z.object({
   participantId: z.string().min(1, "Participant ID is required"),
@@ -92,11 +91,10 @@ const LikertScale = ({
 const PostSurveyView = ({
   conversationId,
 }: {
-  conversationId: Id<"conversations">;
+  conversationId: ConversationId;
 }) => {
   const router = useRouter();
   const submitSurvey = useSubmitSurvey();
-  const completeConversation = useCompleteConversation();
 
   const form = useForm<PostSurveyFormData>({
     resolver: zodResolver(formSchema),
@@ -137,7 +135,6 @@ const PostSurveyView = ({
           })),
       });
 
-      await completeConversation({ id: conversationId });
       router.replace("/debriefing");
     } catch (error) {
       console.error("Failed to submit survey:", error);

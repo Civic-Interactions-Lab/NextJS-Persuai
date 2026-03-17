@@ -12,8 +12,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SendIcon } from "lucide-react";
-import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
 import { ConversationId } from "../../../../convex/types/convexTypes";
 import { useGetConversationById } from "@/features/conversation/hooks/use-conversations";
 
@@ -21,16 +19,11 @@ interface FinishStudyButtonProps {
   conversationId: ConversationId;
 }
 
-const MIN_LENGTH = 10;
-
-const FinishStudyButton = ({ conversationId }: FinishStudyButtonProps) => {
+const StudyFinishButton = ({ conversationId }: FinishStudyButtonProps) => {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
-  const messages = useQuery(api.messages.getMessages, { conversationId });
   const conversation = useGetConversationById(conversationId);
-
-  const isDisabled = !messages || messages.length < MIN_LENGTH;
 
   const handleClick = () => {
     if (conversation?.status === "complete") {
@@ -42,7 +35,7 @@ const FinishStudyButton = ({ conversationId }: FinishStudyButtonProps) => {
 
   return (
     <>
-      <Button size="sm" onClick={handleClick} disabled={isDisabled}>
+      <Button size="sm" onClick={handleClick}>
         <SendIcon className="size-4" />
         <span className="hidden sm:inline">Finish</span>
       </Button>
@@ -76,4 +69,4 @@ const FinishStudyButton = ({ conversationId }: FinishStudyButtonProps) => {
   );
 };
 
-export default FinishStudyButton;
+export default StudyFinishButton;

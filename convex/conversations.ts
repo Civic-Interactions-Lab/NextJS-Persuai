@@ -7,6 +7,7 @@ export const createConversation = mutation({
     externalStudyId: v.optional(v.string()),
     externalSessionId: v.optional(v.string()),
     title: v.string(),
+    topicId: v.id("topics"),
   },
   handler: async (ctx, args) => {
     const agents = await ctx.db.query("agents").collect();
@@ -18,9 +19,9 @@ export const createConversation = mutation({
       externalId: args.externalId,
       externalStudyId: args.externalStudyId,
       externalSessionId: args.externalSessionId,
-      status: "active",
       title: args.title,
       agentId: randomAgent?._id,
+      topicId: args.topicId,
       updatedAt: Date.now(),
     });
   },
@@ -37,25 +38,14 @@ export const getConversations = query({
   },
 });
 
-export const getConversationsForExternalId = query({
+export const getConversationForExternalId = query({
   args: { externalId: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
+  handler: async (ctx, args) =>
+    ctx.db
       .query("conversations")
       .withIndex("by_external", (q) => q.eq("externalId", args.externalId))
       .order("desc")
-      .collect();
-  },
-});
-
-export const completeConversation = mutation({
-  args: { id: v.id("conversations") },
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, {
-      status: "complete",
-      updatedAt: Date.now(),
-    });
-  },
+      .first(),
 });
 
 export const getConversationById = query({
@@ -98,7 +88,6 @@ export const update = mutation({
         topic: {
           title: topic.title,
           issue: topic.issue,
-          context: topic.context,
         },
         agent: {
           name: agent.name,

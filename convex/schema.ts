@@ -1,15 +1,23 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { positionValidator } from "./types/convexTypes";
+import { participantStatusValidator } from "./types/participantTypes";
 
 export default defineSchema({
+  // ── Participants ───────────────────────────────────────────────────────────
+  participants: defineTable({
+    externalId: v.string(),
+    status: participantStatusValidator,
+    submissionCode: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_external", ["externalId"]),
+
   // ── Conversations ──────────────────────────────────────────────────────────
   conversations: defineTable({
     externalId: v.string(),
     externalStudyId: v.optional(v.string()),
     externalSessionId: v.optional(v.string()),
     title: v.string(),
-    status: v.union(v.literal("active"), v.literal("complete")),
     topicId: v.optional(v.id("topics")),
     agentId: v.optional(v.id("agents")),
     metadata: v.optional(v.any()),
@@ -30,8 +38,6 @@ export default defineSchema({
   topics: defineTable({
     title: v.string(),
     issue: v.string(),
-    context: v.string(),
-    isActive: v.optional(v.boolean()),
   }),
 
   // ── Messages ───────────────────────────────────────────────────────────────

@@ -2,13 +2,15 @@
 
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useGetConversationById } from "@/features/conversation/hooks/use-conversations";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ConversationId } from "../../../../convex/types/convexTypes";
 import { isValidConvexId } from "../../../../convex/utils";
-import FinishStudyButton from "@/features/conversation/components/finish-study-button";
+import StudyFinishButton from "@/features/conversation/components/study-finish-button";
+import StudyExitButton from "@/features/conversation/components/study-exit-button";
 
 const ConversationHeader = () => {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   let conversationId: ConversationId | null = null;
   if (pathname.startsWith("/conversations/")) {
@@ -19,9 +21,11 @@ const ConversationHeader = () => {
   }
 
   const conversation = useGetConversationById(conversationId);
+  const isSurvey = pathname === "/survey";
+  const isPreSurvey = isSurvey && searchParams.get("type") === "pre";
 
   let title = "";
-  if (pathname === "/survey") {
+  if (isSurvey) {
     title = "Getting Started";
   } else if (pathname === "/debriefing") {
     title = "Study Completion";
@@ -36,8 +40,10 @@ const ConversationHeader = () => {
         {title && <h1 className="font-medium text-sm truncate">{title}</h1>}
       </div>
 
+      {isPreSurvey && <StudyExitButton />}
+
       {conversationId && title && (
-        <FinishStudyButton conversationId={conversationId} />
+        <StudyFinishButton conversationId={conversationId} />
       )}
     </header>
   );

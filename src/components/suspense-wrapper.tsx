@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Suspense } from "react";
-import { LoaderIcon } from "lucide-react";
+import { Loader2Icon } from "lucide-react";
 
 export default function SuspenseWrapper({
   children,
@@ -12,8 +12,9 @@ export default function SuspenseWrapper({
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center h-full">
-          <LoaderIcon className="size-5 animate-spin text-muted-foreground" />
+        <div className="flex flex-col items-center justify-center h-full gap-2">
+          <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       }
     >

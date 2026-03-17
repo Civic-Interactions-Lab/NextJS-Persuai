@@ -1,6 +1,10 @@
 import { Doc, Id } from "../_generated/dataModel";
 import { v } from "convex/values";
 
+// ── Participants ───────────────────────────────────────────────────────────
+export type Participant = Doc<"participants">;
+export type ParticipantId = Id<"participants">;
+
 // ── Conversations ──────────────────────────────────────────────────────────
 export type Conversation = Doc<"conversations">;
 export type ConversationId = Id<"conversations">;
@@ -8,12 +12,14 @@ export type ConversationId = Id<"conversations">;
 // ── Agents ─────────────────────────────────────────────────────────────────
 export type Agent = Doc<"agents">;
 export type AgentId = Id<"agents">;
-export type AgentPosition = "agree" | "disagree" | "neutral" | "manipulative";
+export type AgentPosition =
+  | "non_manipulative"
+  | "manipulative_left"
+  | "manipulative_right";
 export const positionValidator = v.union(
-  v.literal("agree"),
-  v.literal("disagree"),
-  v.literal("neutral"),
-  v.literal("manipulative"),
+  v.literal("non_manipulative"),
+  v.literal("manipulative_left"),
+  v.literal("manipulative_right"),
 );
 
 // ── Topics ─────────────────────────────────────────────────────────────────
