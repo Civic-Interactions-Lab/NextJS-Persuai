@@ -11,9 +11,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { SendIcon } from "lucide-react";
+import { ScrollTextIcon, SendIcon } from "lucide-react";
 import { ConversationId } from "../../../../convex/types/convexTypes";
-import { useGetConversationById } from "@/features/conversation/hooks/use-conversations";
+import {
+  useGetParticipantByExternalId,
+  useUpsertParticipant,
+} from "@/features/conversation/hooks/use-participants";
+import { generateSubmissionCode } from "@/lib/utils";
 
 interface FinishStudyButtonProps {
   conversationId: ConversationId;
@@ -22,22 +26,47 @@ interface FinishStudyButtonProps {
 const StudyFinishButton = ({ conversationId }: FinishStudyButtonProps) => {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const upsertParticipant = useUpsertParticipant();
 
-  const conversation = useGetConversationById(conversationId);
+  const externalId =
+    typeof window !== "undefined" ? localStorage.getItem("PROLIFIC_PID") : null;
+
+  const participant = useGetParticipantByExternalId(externalId);
+  const isFinished =
+    participant?.status === "completed" || participant?.status === "partial";
 
   const handleClick = () => {
-    if (conversation?.status === "complete") {
+    if (isFinished) {
       router.push("/debriefing");
       return;
     }
     setOpen(true);
   };
 
+  const handleConfirm = async () => {
+    const externalId = localStorage.getItem("PROLIFIC_PID");
+    if (externalId) {
+      const submissionCode = generateSubmissionCode();
+      await upsertParticipant({
+        externalId,
+        status: "opted_out",
+        submissionCode,
+      });
+    }
+    router.push(`/survey?type=post&conversationId=${conversationId}`);
+  };
+
   return (
     <>
-      <Button size="sm" onClick={handleClick}>
-        <SendIcon className="size-4" />
-        <span className="hidden sm:inline">Finish</span>
+      <Button size="sm" variant="ghost" onClick={handleClick}>
+        {isFinished ? (
+          <ScrollTextIcon className="size-4" />
+        ) : (
+          <SendIcon className="size-4" />
+        )}
+        <span className="hidden sm:inline">
+          {isFinished ? "Debrief" : "Finish"}
+        </span>
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -53,15 +82,7 @@ const StudyFinishButton = ({ conversationId }: FinishStudyButtonProps) => {
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={() =>
-                router.push(
-                  `/survey?type=post&conversationId=${conversationId}`,
-                )
-              }
-            >
-              Go to Post-Survey
-            </Button>
+            <Button onClick={handleConfirm}>Go to Post-Survey</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

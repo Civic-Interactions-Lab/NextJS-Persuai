@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/logo";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import NewConversationDialog from "@/features/conversation/components/new-conversation-dialog";
 import ConsentDialog from "@/features/conversation/components/consent-dialog";
@@ -21,25 +21,31 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useGetConversationForExternalId } from "@/features/conversation/hooks/use-conversations";
+import { Loader2Icon } from "lucide-react";
 
-const NewConversationView = () => {
+interface NewConversationViewProps {
+  prolificPid?: string;
+  studyId?: string;
+  sessionId?: string;
+}
+
+const NewConversationView = ({
+  prolificPid,
+  studyId,
+  sessionId,
+}: NewConversationViewProps) => {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [isCreatingParticipant, setIsCreatingParticipant] = useState(false);
 
   useEffect(() => {
-    const prolificPid = searchParams.get("PROLIFIC_PID");
-    const studyId = searchParams.get("STUDY_ID");
-    const sessionId = searchParams.get("SESSION_ID");
-
     if (prolificPid) {
       localStorage.setItem("PROLIFIC_PID", prolificPid);
       localStorage.setItem("STUDY_ID", studyId ?? "");
       localStorage.setItem("SESSION_ID", sessionId ?? "");
     }
-  }, [searchParams]);
+  }, [prolificPid, studyId, sessionId]);
 
   const externalId =
     typeof window !== "undefined" ? localStorage.getItem("PROLIFIC_PID") : null;
@@ -172,9 +178,21 @@ const NewConversationView = () => {
     return null;
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-2">
+        <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
   return (
     <>
-      {externalId && !isLoading && !hasConsented && <ConsentDialog />}
+      {externalId &&
+        consent !== undefined &&
+        !hasConsented &&
+        status === "pending" && <ConsentDialog externalId={externalId} />}
 
       <NewConversationDialog
         open={dialogOpen}

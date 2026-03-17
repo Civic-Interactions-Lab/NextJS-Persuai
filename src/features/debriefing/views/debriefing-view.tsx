@@ -6,24 +6,23 @@ import { HeartHandshakeIcon, LoaderIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";
-
-const generateCompletionCode = () => {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  return Array.from({ length: 8 }, () =>
-    chars.charAt(Math.floor(Math.random() * chars.length)),
-  ).join("");
-};
+import { useGetParticipantByExternalId } from "@/features/conversation/hooks/use-participants";
 
 const DebriefingView = () => {
   const [loading, setLoading] = useState(false);
+
+  const externalId =
+    typeof window !== "undefined" ? localStorage.getItem("PROLIFIC_PID") : null;
+
+  const participant = useGetParticipantByExternalId(externalId);
+  const submissionCode = participant?.submissionCode;
 
   const handleComplete = async () => {
     setLoading(true);
     toast.success("Redirecting you back to your Prolific profile...");
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    const code = generateCompletionCode();
     window.location.replace(
-      `https://app.prolific.com/submissions/complete?cc=${code}`,
+      `https://app.prolific.com/submissions/complete?cc=${submissionCode ?? ""}`,
     );
   };
 

@@ -18,75 +18,23 @@ import {
 import { LoaderIcon } from "lucide-react";
 import { toast } from "sonner";
 import { POST_SURVEY_QUESTIONS } from "@/features/survey/constants/post-survey-questions";
-import { cn } from "@/lib/utils";
 import { ConversationId } from "../../../../convex/types/convexTypes";
+import { useGetConversationById } from "@/features/conversation/hooks/use-conversations";
+import { useGetTopicById } from "@/features/settings/hooks/use-topics";
+import LikertScale from "@/features/survey/components/likert-scale";
+import { useGetMessages } from "@/features/conversation/hooks/use-messages";
+import { useUpsertParticipant } from "@/features/conversation/hooks/use-participants";
+import { ROUND_COUNT } from "@/features/conversation/constants/ai-agents";
+import { generateSubmissionCode } from "@/lib/utils";
 
 const formSchema = z.object({
   participantId: z.string().min(1, "Participant ID is required"),
   aiTrust: z.string().min(1, "Required"),
   aiPotential: z.string().min(1, "Required"),
-  topic1L: z.string().min(1, "Required"),
-  topic1R: z.string().min(1, "Required"),
-  topic2L: z.string().min(1, "Required"),
-  topic2R: z.string().min(1, "Required"),
-  topic3L: z.string().min(1, "Required"),
-  topic3R: z.string().min(1, "Required"),
-  topic4L: z.string().min(1, "Required"),
-  topic4R: z.string().min(1, "Required"),
+  topicStance: z.string().min(1, "Required"),
 });
 
 export type PostSurveyFormData = z.infer<typeof formSchema>;
-
-const LikertScale = ({
-  value,
-  onChange,
-  min,
-  max,
-  minLabel,
-  maxLabel,
-}: {
-  value: string;
-  onChange: (val: string) => void;
-  min: number;
-  max: number;
-  minLabel: string;
-  maxLabel: string;
-}) => {
-  const steps = Array.from({ length: max - min + 1 }, (_, i) => min + i);
-  return (
-    <div className="py-2 space-y-2">
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] sm:text-xs text-muted-foreground shrink-0 hidden sm:block w-16 text-right">
-          {minLabel}
-        </span>
-        <div className="flex flex-1 justify-between">
-          {steps.map((step) => (
-            <button
-              key={step}
-              type="button"
-              onClick={() => onChange(String(step))}
-              className={cn(
-                "size-7 sm:size-9 rounded-full border-2 text-xs sm:text-sm font-medium transition-colors",
-                value === String(step)
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-background hover:bg-accent border-input",
-              )}
-            >
-              {step}
-            </button>
-          ))}
-        </div>
-        <span className="text-[10px] sm:text-xs text-muted-foreground shrink-0 hidden sm:block w-16 text-left">
-          {maxLabel}
-        </span>
-      </div>
-      <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground sm:hidden">
-        <span>{minLabel}</span>
-        <span>{maxLabel}</span>
-      </div>
-    </div>
-  );
-};
 
 const PostSurveyView = ({
   conversationId,
@@ -95,6 +43,10 @@ const PostSurveyView = ({
 }) => {
   const router = useRouter();
   const submitSurvey = useSubmitSurvey();
+  const upsertParticipant = useUpsertParticipant();
+  const conversation = useGetConversationById(conversationId);
+  const topic = useGetTopicById(conversation?.topicId ?? null);
+  const messages = useGetMessages(conversationId);
 
   const form = useForm<PostSurveyFormData>({
     resolver: zodResolver(formSchema),
@@ -102,14 +54,7 @@ const PostSurveyView = ({
       participantId: "",
       aiTrust: "",
       aiPotential: "",
-      topic1L: "",
-      topic1R: "",
-      topic2L: "",
-      topic2R: "",
-      topic3L: "",
-      topic3R: "",
-      topic4L: "",
-      topic4R: "",
+      topicStance: "",
     },
   });
 
@@ -135,6 +80,13 @@ const PostSurveyView = ({
           })),
       });
 
+      const userMessageCount =
+        messages?.filter((m) => m.role === "user").length ?? 0;
+      const status = userMessageCount < ROUND_COUNT ? "partial" : "completed";
+      const submissionCode = generateSubmissionCode();
+
+      await upsertParticipant({ externalId, status, submissionCode });
+
       router.replace("/debriefing");
     } catch (error) {
       console.error("Failed to submit survey:", error);
@@ -152,8 +104,7 @@ const PostSurveyView = ({
             Post-Activity Survey
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Welcome! In this section, you will be asked 2 questions about the
-            trust and potential of AI in question answering.
+            Please answer a few questions about your experience.
           </p>
           <p className="text-xs sm:text-sm text-muted-foreground">
             There will be no personal information collected in this survey, and
@@ -234,66 +185,46 @@ const PostSurveyView = ({
                   )}
                 />
 
-                {/* Topic Questions */}
-                <div className="space-y-1 sm:space-y-2 pt-2 border-t">
-                  <p className="text-sm sm:text-base font-medium pt-3 sm:pt-4">
-                    Please rate your agreement with the following topics after
-                    your discussion.
-                  </p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    Scale: 1 = Strongly Agree, 7 = Strongly Disagree
-                  </p>
-                </div>
+                {/* Topic Rating */}
+                {topic && (
+                  <>
+                    <div className="space-y-1 sm:space-y-2 pt-2 border-t">
+                      <p className="text-sm sm:text-base font-medium pt-3 sm:pt-4">
+                        Rate your agreement with your debate topic after the
+                        discussion.
+                      </p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        Scale: 1 = Strongly Disagree, 7 = Strongly Agree
+                      </p>
+                    </div>
 
-                {(
-                  [
-                    "topic1L",
-                    "topic1R",
-                    "topic2L",
-                    "topic2R",
-                    "topic3L",
-                    "topic3R",
-                    "topic4L",
-                    "topic4R",
-                  ] as const
-                ).map((key) => {
-                  const question = q[key];
-                  return (
                     <FormField
-                      key={key}
                       control={form.control}
-                      name={key}
+                      name="topicStance"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-sm sm:text-base">
-                            {question.label}
+                            {topic.issue}
                             <span className="text-destructive ml-1">*</span>
                           </FormLabel>
-                          <p className="text-xs sm:text-sm text-muted-foreground">
-                            How do you agree or disagree with this topic?
-                          </p>
                           <FormControl>
                             <LikertScale
                               value={field.value}
                               onChange={field.onChange}
-                              min={question.min}
-                              max={question.max}
-                              minLabel={question.minLabel}
-                              maxLabel={question.maxLabel}
                             />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  );
-                })}
+                  </>
+                )}
 
                 <div className="pt-4 flex justify-center">
                   <Button
                     type="submit"
                     className="w-full md:max-w-sm h-10 sm:h-11 text-sm sm:text-base"
-                    disabled={form.formState.isSubmitting}
+                    disabled={form.formState.isSubmitting || !topic}
                   >
                     {form.formState.isSubmitting ? (
                       <div className="flex items-center gap-2">

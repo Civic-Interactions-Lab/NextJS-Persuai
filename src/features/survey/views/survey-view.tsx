@@ -1,19 +1,17 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import PreSurveyView from "@/features/survey/views/pre-survey-view";
 import PostSurveyView from "@/features/survey/views/post-survey-view";
 import { ConversationId } from "../../../../convex/types/convexTypes";
 
-const SurveyView = () => {
-  const searchParams = useSearchParams();
-  const type = searchParams.get("type");
-  const conversationId = searchParams.get(
-    "conversationId",
-  ) as ConversationId | null;
+interface SurveyViewProps {
+  type?: string;
+  conversationId?: string;
+}
 
+const SurveyView = ({ type, conversationId }: SurveyViewProps) => {
   if (type === "post" && conversationId) {
-    return <PostSurveyView conversationId={conversationId} />;
+    return <PostSurveyView conversationId={conversationId as ConversationId} />;
   }
 
   return <PreSurveyView />;
