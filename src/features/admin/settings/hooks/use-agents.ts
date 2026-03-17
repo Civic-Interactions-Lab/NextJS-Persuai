@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
-import { AgentId } from "../../../../convex/types/convexTypes";
+import { api } from "../../../../../convex/_generated/api";
+import { AgentId } from "../../../../../convex/types/convexTypes";
 
 export const useCreateAgent = () => {
   return useMutation(api.agents.create);

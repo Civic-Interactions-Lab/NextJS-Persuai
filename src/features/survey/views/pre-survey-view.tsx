@@ -6,7 +6,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useCreateConversation } from "@/features/conversation/hooks/use-conversations";
-import { useSubmitSurvey } from "@/features/survey/hooks/use-surveys";
+import {
+  useSubmitSurvey,
+  useGetSurveyResponsesByExternalId,
+} from "@/features/survey/hooks/use-surveys";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -29,7 +32,7 @@ import { LoaderIcon } from "lucide-react";
 import { toast } from "sonner";
 import { PRE_SURVEY_QUESTIONS } from "@/features/survey/constants/pre-survey-questions";
 import { TopicId } from "../../../../convex/types/convexTypes";
-import { useGetTopics } from "@/features/settings/hooks/use-topics";
+import { useGetTopics } from "@/features/admin/settings/hooks/use-topics";
 import LikertScale from "@/features/survey/components/likert-scale";
 import {
   INITIAL_TITLE,
@@ -57,6 +60,13 @@ const PreSurveyView = () => {
   const topics = useGetTopics();
   const upsertParticipant = useUpsertParticipant();
 
+  const externalId =
+    typeof window !== "undefined" ? localStorage.getItem("PROLIFIC_PID") : null;
+
+  const surveyResponses = useGetSurveyResponsesByExternalId(externalId);
+  const existingPreSurvey = surveyResponses?.find((r) => r.type === "pre");
+  const isReadOnly = !!existingPreSurvey;
+
   const form = useForm<PreSurveyFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -73,6 +83,14 @@ const PreSurveyView = () => {
     const pid = localStorage.getItem("PROLIFIC_PID") ?? crypto.randomUUID();
     form.setValue("participantId", pid);
   }, [form]);
+
+  useEffect(() => {
+    if (existingPreSurvey) {
+      existingPreSurvey.answers.forEach(({ questionId, value }) => {
+        form.setValue(questionId as keyof PreSurveyFormData, value);
+      });
+    }
+  }, [existingPreSurvey, form]);
 
   const selectedTopicId = form.watch("selectedTopicId");
   const selectedTopic = topics?.find((t) => t._id === selectedTopicId);
@@ -124,28 +142,38 @@ const PreSurveyView = () => {
           <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
             Pre-Activity Survey
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Welcome! Please answer 2 questions about AI and then pick one topic
-            you will be debating.
-          </p>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            There will be no personal information collected in this survey, and
-            your responses will be de-identified.
-          </p>
+          {isReadOnly ? (
+            <p className="text-sm text-muted-foreground">
+              You have already submitted this survey. Your responses are shown
+              below.
+            </p>
+          ) : (
+            <>
+              <p className="text-sm sm:text-base text-muted-foreground">
+                Welcome! Please answer 2 questions about AI and then pick one
+                topic you will be debating.
+              </p>
+              <p className="text-sm sm:text-base text-muted-foreground">
+                There will be no personal information collected in this survey,
+                and your responses will be de-identified.
+              </p>
+            </>
+          )}
         </div>
 
-        <p className="mb-3 text-xs sm:text-sm text-muted-foreground text-end">
-          <span className="text-destructive">(*)</span> required
-        </p>
+        {!isReadOnly && (
+          <p className="mb-3 text-xs sm:text-sm text-muted-foreground text-end">
+            <span className="text-destructive">(*)</span> required
+          </p>
+        )}
 
         <div className="rounded-lg border bg-card shadow-sm">
-          <div className="py-2 sm:py-4 md:py-6">
+          <div className="p-2 sm:p-4 md:p-6">
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-5 sm:space-y-8"
               >
-                {/* Participant ID */}
                 <FormField
                   control={form.control}
                   name="participantId"
@@ -166,7 +194,6 @@ const PreSurveyView = () => {
                   )}
                 />
 
-                {/* AI Trust */}
                 <FormField
                   control={form.control}
                   name="aiTrust"
@@ -174,7 +201,9 @@ const PreSurveyView = () => {
                     <FormItem>
                       <FormLabel className="text-sm sm:text-base">
                         {q.aiTrust.label}
-                        <span className="text-destructive ml-1">*</span>
+                        {!isReadOnly && (
+                          <span className="text-destructive ml-1">*</span>
+                        )}
                       </FormLabel>
                       <FormControl>
                         <LikertScale
@@ -184,6 +213,7 @@ const PreSurveyView = () => {
                           max={q.aiTrust.max}
                           minLabel={q.aiTrust.minLabel}
                           maxLabel={q.aiTrust.maxLabel}
+                          disabled={isReadOnly}
                         />
                       </FormControl>
                       <FormMessage />
@@ -191,7 +221,6 @@ const PreSurveyView = () => {
                   )}
                 />
 
-                {/* AI Potential */}
                 <FormField
                   control={form.control}
                   name="aiPotential"
@@ -199,7 +228,9 @@ const PreSurveyView = () => {
                     <FormItem>
                       <FormLabel className="text-sm sm:text-base">
                         {q.aiPotential.label}
-                        <span className="text-destructive ml-1">*</span>
+                        {!isReadOnly && (
+                          <span className="text-destructive ml-1">*</span>
+                        )}
                       </FormLabel>
                       <FormControl>
                         <LikertScale
@@ -209,6 +240,7 @@ const PreSurveyView = () => {
                           max={q.aiPotential.max}
                           minLabel={q.aiPotential.minLabel}
                           maxLabel={q.aiPotential.maxLabel}
+                          disabled={isReadOnly}
                         />
                       </FormControl>
                       <FormMessage />
@@ -216,7 +248,6 @@ const PreSurveyView = () => {
                   )}
                 />
 
-                {/* Political Orientation */}
                 <FormField
                   control={form.control}
                   name="politicalOrientation"
@@ -224,13 +255,17 @@ const PreSurveyView = () => {
                     <FormItem>
                       <FormLabel className="text-sm sm:text-base">
                         {q.politicalOrientation.label}
-                        <span className="text-muted-foreground ml-1 text-xs sm:text-sm">
-                          (optional)
-                        </span>
+                        {!isReadOnly && (
+                          <span className="text-muted-foreground ml-1 text-xs sm:text-sm">
+                            (optional)
+                          </span>
+                        )}
                       </FormLabel>
                       <FormControl>
                         <RadioGroup
-                          onValueChange={field.onChange}
+                          onValueChange={
+                            isReadOnly ? undefined : field.onChange
+                          }
                           value={field.value}
                           className="flex flex-col pt-2"
                         >
@@ -240,7 +275,10 @@ const PreSurveyView = () => {
                               className="flex items-center space-x-3 space-y-0"
                             >
                               <FormControl>
-                                <RadioGroupItem value={option.value} />
+                                <RadioGroupItem
+                                  value={option.value}
+                                  disabled={isReadOnly}
+                                />
                               </FormControl>
                               <FormLabel className="text-xs sm:text-sm font-normal cursor-pointer">
                                 {option.label}
@@ -254,16 +292,18 @@ const PreSurveyView = () => {
                   )}
                 />
 
-                {/* Topic Selection */}
                 <div className="space-y-1 sm:space-y-2 pt-2 border-t">
                   <p className="text-sm sm:text-base font-medium pt-3 sm:pt-4">
-                    Pick one topic you will be debating for {ROUND_COUNT}{" "}
-                    rounds.
+                    {isReadOnly
+                      ? "Your selected debate topic."
+                      : `Pick one topic you will be debating for ${ROUND_COUNT} rounds.`}
                   </p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    After selecting a topic, rate your initial agreement (1 =
-                    Strongly Disagree, 7 = Strongly Agree).
-                  </p>
+                  {!isReadOnly && (
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      After selecting a topic, rate your initial agreement (1 =
+                      Strongly Disagree, 7 = Strongly Agree).
+                    </p>
+                  )}
                 </div>
 
                 <FormField
@@ -273,14 +313,21 @@ const PreSurveyView = () => {
                     <FormItem>
                       <FormLabel className="text-sm sm:text-base">
                         Select a Debate Topic
-                        <span className="text-destructive ml-1">*</span>
+                        {!isReadOnly && (
+                          <span className="text-destructive ml-1">*</span>
+                        )}
                       </FormLabel>
                       <Select
                         value={field.value}
-                        onValueChange={(val) => {
-                          field.onChange(val);
-                          form.setValue("topicStance", "");
-                        }}
+                        onValueChange={
+                          isReadOnly
+                            ? undefined
+                            : (val) => {
+                                field.onChange(val);
+                                form.setValue("topicStance", "");
+                              }
+                        }
+                        disabled={isReadOnly}
                       >
                         <FormControl>
                           <SelectTrigger className="h-10 sm:h-11 w-full overflow-hidden">
@@ -303,8 +350,7 @@ const PreSurveyView = () => {
                   )}
                 />
 
-                {/* Stance on selected topic */}
-                {selectedTopic && (
+                {(selectedTopic || isReadOnly) && (
                   <FormField
                     control={form.control}
                     name="topicStance"
@@ -312,15 +358,20 @@ const PreSurveyView = () => {
                       <FormItem>
                         <FormLabel className="text-sm sm:text-base">
                           How much do you agree with this topic?
-                          <span className="text-destructive ml-1">*</span>
+                          {!isReadOnly && (
+                            <span className="text-destructive ml-1">*</span>
+                          )}
                         </FormLabel>
-                        <p className="text-xs sm:text-sm text-muted-foreground">
-                          Scale: 1 = Strongly Disagree, 7 = Strongly Agree
-                        </p>
+                        {!isReadOnly && (
+                          <p className="text-xs sm:text-sm text-muted-foreground">
+                            Scale: 1 = Strongly Disagree, 7 = Strongly Agree
+                          </p>
+                        )}
                         <FormControl>
                           <LikertScale
                             value={field.value}
                             onChange={field.onChange}
+                            disabled={isReadOnly}
                           />
                         </FormControl>
                         <FormMessage />
@@ -329,30 +380,34 @@ const PreSurveyView = () => {
                   />
                 )}
 
-                <div className="pt-6 flex justify-center">
-                  <Button
-                    type="submit"
-                    className="w-full md:max-w-sm h-10 sm:h-11 text-sm sm:text-base"
-                    disabled={form.formState.isSubmitting}
-                  >
-                    {form.formState.isSubmitting ? (
-                      <div className="flex items-center gap-2">
-                        <LoaderIcon className="size-4 animate-spin" />
-                        <span>Submitting...</span>
-                      </div>
-                    ) : (
-                      "Submit Survey"
-                    )}
-                  </Button>
-                </div>
+                {!isReadOnly && (
+                  <div className="pt-6 flex justify-center">
+                    <Button
+                      type="submit"
+                      className="w-full md:max-w-sm h-10 sm:h-11 text-sm sm:text-base"
+                      disabled={form.formState.isSubmitting}
+                    >
+                      {form.formState.isSubmitting ? (
+                        <div className="flex items-center gap-2">
+                          <LoaderIcon className="size-4 animate-spin" />
+                          <span>Submitting...</span>
+                        </div>
+                      ) : (
+                        "Submit Survey"
+                      )}
+                    </Button>
+                  </div>
+                )}
               </form>
             </Form>
           </div>
         </div>
 
-        <p className="my-4 sm:my-6 text-xs sm:text-sm text-muted-foreground text-center">
-          Please make sure you complete all the required fields. Thank you!
-        </p>
+        {!isReadOnly && (
+          <p className="my-4 sm:my-6 text-xs sm:text-sm text-muted-foreground text-center">
+            Please make sure you complete all the required fields. Thank you!
+          </p>
+        )}
       </div>
     </div>
   );

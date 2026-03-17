@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useSubmitSurvey } from "@/features/survey/hooks/use-surveys";
+import {
+  useSubmitSurvey,
+  useGetSurveyResponsesByExternalId,
+} from "@/features/survey/hooks/use-surveys";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -20,7 +23,7 @@ import { toast } from "sonner";
 import { POST_SURVEY_QUESTIONS } from "@/features/survey/constants/post-survey-questions";
 import { ConversationId } from "../../../../convex/types/convexTypes";
 import { useGetConversationById } from "@/features/conversation/hooks/use-conversations";
-import { useGetTopicById } from "@/features/settings/hooks/use-topics";
+import { useGetTopicById } from "@/features/admin/settings/hooks/use-topics";
 import LikertScale from "@/features/survey/components/likert-scale";
 import { useGetMessages } from "@/features/conversation/hooks/use-messages";
 import { useUpsertParticipant } from "@/features/conversation/hooks/use-participants";
@@ -48,6 +51,13 @@ const PostSurveyView = ({
   const topic = useGetTopicById(conversation?.topicId ?? null);
   const messages = useGetMessages(conversationId);
 
+  const externalId =
+    typeof window !== "undefined" ? localStorage.getItem("PROLIFIC_PID") : null;
+
+  const surveyResponses = useGetSurveyResponsesByExternalId(externalId);
+  const existingPostSurvey = surveyResponses?.find((r) => r.type === "post");
+  const isReadOnly = !!existingPostSurvey;
+
   const form = useForm<PostSurveyFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -63,6 +73,14 @@ const PostSurveyView = ({
     if (pid) form.setValue("participantId", pid);
   }, [form]);
 
+  useEffect(() => {
+    if (existingPostSurvey) {
+      existingPostSurvey.answers.forEach(({ questionId, value }) => {
+        form.setValue(questionId as keyof PostSurveyFormData, value);
+      });
+    }
+  }, [existingPostSurvey, form]);
+
   const onSubmit = async (data: PostSurveyFormData) => {
     try {
       const externalId =
@@ -72,12 +90,17 @@ const PostSurveyView = ({
         conversationId,
         externalId,
         type: "post",
-        answers: Object.entries(data)
-          .filter(([, value]) => value !== "" && value !== undefined)
-          .map(([questionId, value]) => ({
-            questionId,
-            value: value as string,
-          })),
+        answers: [
+          ...Object.entries(data)
+            .filter(([, value]) => value !== "" && value !== undefined)
+            .map(([questionId, value]) => ({
+              questionId,
+              value: value as string,
+            })),
+          ...(conversation?.topicId
+            ? [{ questionId: "topicId", value: conversation.topicId }]
+            : []),
+        ],
       });
 
       const userMessageCount =
@@ -103,18 +126,29 @@ const PostSurveyView = ({
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">
             Post-Activity Survey
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Please answer a few questions about your experience.
-          </p>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            There will be no personal information collected in this survey, and
-            your responses will be de-identified.
-          </p>
+          {isReadOnly ? (
+            <p className="text-sm text-muted-foreground">
+              You have already submitted this survey. Your responses are shown
+              below.
+            </p>
+          ) : (
+            <>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Please answer a few questions about your experience.
+              </p>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                There will be no personal information collected in this survey,
+                and your responses will be de-identified.
+              </p>
+            </>
+          )}
         </div>
 
-        <p className="mb-3 text-xs sm:text-sm text-muted-foreground text-end">
-          <span className="text-destructive">(*)</span> required
-        </p>
+        {!isReadOnly && (
+          <p className="mb-3 text-xs sm:text-sm text-muted-foreground text-end">
+            <span className="text-destructive">(*)</span> required
+          </p>
+        )}
 
         <div className="rounded-lg border bg-card shadow-sm">
           <div className="p-4 sm:p-6 md:p-8">
@@ -135,7 +169,6 @@ const PostSurveyView = ({
                   )}
                 />
 
-                {/* AI Trust */}
                 <FormField
                   control={form.control}
                   name="aiTrust"
@@ -143,7 +176,9 @@ const PostSurveyView = ({
                     <FormItem>
                       <FormLabel className="text-sm sm:text-base">
                         {q.aiTrust.label}
-                        <span className="text-destructive ml-1">*</span>
+                        {!isReadOnly && (
+                          <span className="text-destructive ml-1">*</span>
+                        )}
                       </FormLabel>
                       <FormControl>
                         <LikertScale
@@ -153,6 +188,7 @@ const PostSurveyView = ({
                           max={q.aiTrust.max}
                           minLabel={q.aiTrust.minLabel}
                           maxLabel={q.aiTrust.maxLabel}
+                          disabled={isReadOnly}
                         />
                       </FormControl>
                       <FormMessage />
@@ -160,7 +196,6 @@ const PostSurveyView = ({
                   )}
                 />
 
-                {/* AI Potential */}
                 <FormField
                   control={form.control}
                   name="aiPotential"
@@ -168,7 +203,9 @@ const PostSurveyView = ({
                     <FormItem>
                       <FormLabel className="text-sm sm:text-base">
                         {q.aiPotential.label}
-                        <span className="text-destructive ml-1">*</span>
+                        {!isReadOnly && (
+                          <span className="text-destructive ml-1">*</span>
+                        )}
                       </FormLabel>
                       <FormControl>
                         <LikertScale
@@ -178,6 +215,7 @@ const PostSurveyView = ({
                           max={q.aiPotential.max}
                           minLabel={q.aiPotential.minLabel}
                           maxLabel={q.aiPotential.maxLabel}
+                          disabled={isReadOnly}
                         />
                       </FormControl>
                       <FormMessage />
@@ -185,17 +223,19 @@ const PostSurveyView = ({
                   )}
                 />
 
-                {/* Topic Rating */}
-                {topic && (
+                {(topic || isReadOnly) && (
                   <>
                     <div className="space-y-1 sm:space-y-2 pt-2 border-t">
                       <p className="text-sm sm:text-base font-medium pt-3 sm:pt-4">
-                        Rate your agreement with your debate topic after the
-                        discussion.
+                        {isReadOnly
+                          ? "Your agreement with your debate topic after the discussion."
+                          : "Rate your agreement with your debate topic after the discussion."}
                       </p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">
-                        Scale: 1 = Strongly Disagree, 7 = Strongly Agree
-                      </p>
+                      {!isReadOnly && (
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                          Scale: 1 = Strongly Disagree, 7 = Strongly Agree
+                        </p>
+                      )}
                     </div>
 
                     <FormField
@@ -204,13 +244,16 @@ const PostSurveyView = ({
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-sm sm:text-base">
-                            {topic.issue}
-                            <span className="text-destructive ml-1">*</span>
+                            {topic?.issue}
+                            {!isReadOnly && (
+                              <span className="text-destructive ml-1">*</span>
+                            )}
                           </FormLabel>
                           <FormControl>
                             <LikertScale
                               value={field.value}
                               onChange={field.onChange}
+                              disabled={isReadOnly}
                             />
                           </FormControl>
                           <FormMessage />
@@ -220,30 +263,34 @@ const PostSurveyView = ({
                   </>
                 )}
 
-                <div className="pt-4 flex justify-center">
-                  <Button
-                    type="submit"
-                    className="w-full md:max-w-sm h-10 sm:h-11 text-sm sm:text-base"
-                    disabled={form.formState.isSubmitting || !topic}
-                  >
-                    {form.formState.isSubmitting ? (
-                      <div className="flex items-center gap-2">
-                        <LoaderIcon className="size-4 animate-spin" />
-                        <span>Submitting...</span>
-                      </div>
-                    ) : (
-                      "Submit"
-                    )}
-                  </Button>
-                </div>
+                {!isReadOnly && (
+                  <div className="pt-4 flex justify-center">
+                    <Button
+                      type="submit"
+                      className="w-full md:max-w-sm h-10 sm:h-11 text-sm sm:text-base"
+                      disabled={form.formState.isSubmitting || !topic}
+                    >
+                      {form.formState.isSubmitting ? (
+                        <div className="flex items-center gap-2">
+                          <LoaderIcon className="size-4 animate-spin" />
+                          <span>Submitting...</span>
+                        </div>
+                      ) : (
+                        "Submit"
+                      )}
+                    </Button>
+                  </div>
+                )}
               </form>
             </Form>
           </div>
         </div>
 
-        <p className="my-4 sm:my-6 text-xs sm:text-sm text-muted-foreground text-center">
-          Please make sure you complete all the required fields. Thank you!
-        </p>
+        {!isReadOnly && (
+          <p className="my-4 sm:my-6 text-xs sm:text-sm text-muted-foreground text-center">
+            Please make sure you complete all the required fields. Thank you!
+          </p>
+        )}
       </div>
     </div>
   );

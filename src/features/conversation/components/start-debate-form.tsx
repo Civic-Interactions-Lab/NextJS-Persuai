@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/logo";
 import { TopicId } from "../../../../convex/types/convexTypes";
-import { useGetTopicById } from "@/features/settings/hooks/use-topics";
+import { useGetTopicById } from "@/features/admin/settings/hooks/use-topics";
 import { LIKERT_LABELS } from "@/features/survey/components/likert-scale";
 
 interface StartDebateFormProps {

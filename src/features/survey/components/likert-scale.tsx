@@ -17,6 +17,7 @@ interface LikertScaleProps {
   max?: number;
   minLabel?: string;
   maxLabel?: string;
+  disabled?: boolean;
 }
 
 const LikertScale = ({
@@ -26,6 +27,7 @@ const LikertScale = ({
   max = 7,
   minLabel = "Strongly Disagree",
   maxLabel = "Strongly Agree",
+  disabled = false,
 }: LikertScaleProps) => {
   const steps = Array.from({ length: max - min + 1 }, (_, i) => min + i);
   return (
@@ -39,12 +41,16 @@ const LikertScale = ({
             <button
               key={step}
               type="button"
-              onClick={() => onChange(String(step))}
+              onClick={() => !disabled && onChange(String(step))}
+              disabled={disabled}
               className={cn(
                 "size-7 sm:size-9 rounded-full border-2 text-xs sm:text-sm font-medium transition-colors",
                 value === String(step)
                   ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-background hover:bg-accent border-input",
+                  : "bg-background border-input",
+                disabled
+                  ? "cursor-not-allowed opacity-70"
+                  : "hover:bg-accent cursor-pointer",
               )}
             >
               {step}

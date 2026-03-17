@@ -1,7 +1,7 @@
 "use client";
 
 import { useGetConversations } from "@/features/conversation/hooks/use-conversations";
-import { useGetTopics } from "@/features/settings/hooks/use-topics";
+import { useGetTopics } from "@/features/admin/settings/hooks/use-topics";
 
 const MostPickedTopicSection = () => {
   const conversations = useGetConversations();

@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
-import { TopicId } from "../../../../convex/types/convexTypes";
+import { api } from "../../../../../convex/_generated/api";
+import { TopicId } from "../../../../../convex/types/convexTypes";
 
 export const useGetTopics = () => {
   return useQuery(api.topics.getAll);

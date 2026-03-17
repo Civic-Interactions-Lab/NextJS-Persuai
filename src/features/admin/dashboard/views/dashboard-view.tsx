@@ -5,10 +5,9 @@ import { Loader2 } from "lucide-react";
 import {
   TotalConversationsCard,
   WeeklyTrendingCard,
-} from "@/features/dashboard/components/conversation-stats-cards";
-import MostPickedTopicSection from "@/features/dashboard/components/most-picked-topic-section";
-import RecentConversationsList from "@/features/dashboard/components/recent-conversations-list";
-import SurveyResultsSection from "@/features/dashboard/components/survey-results-section";
+} from "@/features/admin/dashboard/components/conversation-stats-cards";
+import MostPickedTopicSection from "@/features/admin/dashboard/components/most-picked-topic-section";
+import RecentConversationsList from "@/features/admin/dashboard/components/recent-conversations-list";
 
 const DashboardView = () => {
   const conversations = useGetConversations();
@@ -23,7 +22,6 @@ const DashboardView = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      {/* Header */}
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
         <p className="text-muted-foreground">
@@ -31,22 +29,17 @@ const DashboardView = () => {
         </p>
       </div>
 
-      {/* md layout: Cards full width, then Most Picked | Recent side-by-side */}
       <div className="lg:hidden space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <TotalConversationsCard />
           <WeeklyTrendingCard />
         </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           <MostPickedTopicSection />
           <RecentConversationsList />
         </div>
-
-        <SurveyResultsSection />
       </div>
 
-      {/* lg layout: Left (Cards + Most Picked) | Right (Recent) */}
       <div className="hidden lg:grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
           <div className="grid gap-4 grid-cols-2">
@@ -54,10 +47,7 @@ const DashboardView = () => {
             <WeeklyTrendingCard />
           </div>
           <MostPickedTopicSection />
-
-          <SurveyResultsSection />
         </div>
-
         <div className="lg:col-span-1">
           <RecentConversationsList />
         </div>
