@@ -1,6 +1,8 @@
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { google } from "@ai-sdk/google";
+import { openai } from "@ai-sdk/openai";
+import { createGroq } from "@ai-sdk/groq";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../convex/_generated/api";
 import {
@@ -13,6 +15,20 @@ import {
 } from "@/features/conversation/constants/ai-agents";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+const groq = createGroq({ apiKey: process.env.GROQ_API_KEY });
+
+const getModel = (provider: string, model: string) => {
+  switch (provider) {
+    case "openai":
+      return openai(model);
+    case "google":
+      return google(model);
+    case "groq":
+      return groq(model);
+    default:
+      return groq(model);
+  }
+};
 
 export async function POST(request: Request) {
   try {
@@ -48,13 +64,24 @@ export async function POST(request: Request) {
 
     const systemPrompt = `${agent.systemPrompt}\n\nDebate topic: "${topic.issue}"`;
 
-    const messages = await convex.query(api.db.messages.getMessages, {
-      conversationId: conversationId as ConversationId,
-    });
+    const [providerSetting, modelSetting, messages] = await Promise.all([
+      convex.query(api.db.settings.getSetting, { key: "llm_provider" }),
+      convex.query(api.db.settings.getSetting, { key: "llm_model" }),
+      convex.query(api.db.messages.getMessages, {
+        conversationId: conversationId as ConversationId,
+      }),
+    ]);
+
+    const provider = providerSetting?.value ?? "groq";
+    const modelName = modelSetting?.value ?? "llama3-8b-8192";
+
+    console.log("Provider:", provider);
+    console.log("Model:", modelName);
+    console.log("System Prompt:", systemPrompt);
 
     try {
       const { text } = await generateText({
-        model: google("gemini-2.5-flash"),
+        model: getModel(provider, modelName),
         system: systemPrompt,
         messages:
           messages.length > 0

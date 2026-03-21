@@ -80,4 +80,11 @@ export default defineSchema({
     consented: v.boolean(),
     consentedAt: v.number(),
   }).index("by_external", ["externalId"]),
+
+  // ── Settings ───────────────────────────────────────────────────────────────
+
+  settings: defineTable({
+    key: v.string(),
+    value: v.string(),
+  }).index("by_key", ["key"]),
 });

@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ConsentDialog from "@/features/conversation/components/consent-dialog";
 import {
-  NewConversationDialog,
   NoProlificDialog,
   CompletedStudyDialog,
   OptedOutDialog,
@@ -31,7 +30,6 @@ const NewConversationView = ({
   sessionId,
 }: NewConversationViewProps) => {
   const router = useRouter();
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [isCreatingParticipant, setIsCreatingParticipant] = useState(false);
   const [externalId, setExternalId] = useState<string | null>(null);
@@ -98,11 +96,7 @@ const NewConversationView = ({
       router.push(`/conversations/${currentConversation._id}`);
       return;
     }
-    setDialogOpen(true);
-  };
-
-  const handleConsentConfirm = () => {
-    setDialogOpen(false);
+    // Go straight to the pre-survey — no intermediate dialog
     router.push("/survey?type=pre");
   };
 
@@ -152,12 +146,6 @@ const NewConversationView = ({
             consent !== undefined &&
             !hasConsented &&
             status === "pending" && <ConsentDialog externalId={externalId} />}
-
-          <NewConversationDialog
-            open={dialogOpen}
-            onOpenChange={setDialogOpen}
-            onConfirm={handleConsentConfirm}
-          />
 
           {(status === "completed" || status === "partial") && (
             <CompletedStudyDialog

@@ -13,6 +13,7 @@ import type * as db_consents from "../db/consents.js";
 import type * as db_conversations from "../db/conversations.js";
 import type * as db_messages from "../db/messages.js";
 import type * as db_participants from "../db/participants.js";
+import type * as db_settings from "../db/settings.js";
 import type * as db_survey from "../db/survey.js";
 import type * as db_topics from "../db/topics.js";
 import type * as types_convexTypes from "../types/convexTypes.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   "db/conversations": typeof db_conversations;
   "db/messages": typeof db_messages;
   "db/participants": typeof db_participants;
+  "db/settings": typeof db_settings;
   "db/survey": typeof db_survey;
   "db/topics": typeof db_topics;
   "types/convexTypes": typeof types_convexTypes;
