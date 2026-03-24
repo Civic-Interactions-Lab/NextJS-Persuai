@@ -44,33 +44,23 @@ interface ConversationSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const getMessageStyling = (agreement?: "agree" | "disagree" | "neutral") => {
-  if (!agreement) return "";
-  switch (agreement) {
-    case "agree":
-      return "bg-green-50 border-l-4 border-l-green-400 dark:bg-green-950/20 dark:border-l-green-500";
-    case "disagree":
-      return "bg-red-50 border-l-4 border-l-red-400 dark:bg-red-950/20 dark:border-l-red-500";
-    case "neutral":
-      return "bg-yellow-50 border-l-4 border-l-yellow-400 dark:bg-yellow-950/20 dark:border-l-yellow-500";
-    default:
-      return "";
-  }
+const getMessageStyling = (agreement?: number) => {
+  if (agreement === undefined) return "";
+  if (agreement <= 3)
+    return "bg-red-50 border-l-4 border-l-red-400 dark:bg-red-950/20 dark:border-l-red-500";
+  if (agreement === 4)
+    return "bg-yellow-50 border-l-4 border-l-yellow-400 dark:bg-yellow-950/20 dark:border-l-yellow-500";
+  return "bg-green-50 border-l-4 border-l-green-400 dark:bg-green-950/20 dark:border-l-green-500";
 };
 
-const getAgreementIcon = (agreement?: "agree" | "disagree" | "neutral") => {
-  if (!agreement) return null;
-  switch (agreement) {
-    case "agree":
-      return <CheckCircleIcon className="size-6 text-green-600" />;
-    case "disagree":
-      return <XCircleIcon className="size-6 text-red-600" />;
-    case "neutral":
-      return <TriangleAlertIcon className="size-6 text-yellow-500" />;
-  }
+const getAgreementIcon = (agreement?: number) => {
+  if (agreement === undefined) return null;
+  if (agreement <= 3) return <XCircleIcon className="size-6 text-red-600" />;
+  if (agreement === 4)
+    return <TriangleAlertIcon className="size-6 text-yellow-500" />;
+  return <CheckCircleIcon className="size-6 text-green-600" />;
 };
 
-// Determine political leaning from orientation value
 const getPoliticalLeaning = (
   orientation: string | undefined,
 ): "left" | "right" | "neutral" => {
@@ -86,16 +76,17 @@ const getAgentLeaning = (
 ): "left" | "right" | "neutral" => {
   if (position === "manipulative_left") return "left";
   if (position === "manipulative_right") return "right";
-  return "neutral"; // non_manipulative
+  return "neutral";
 };
 
-// +1 or -1 based on leaning relationship
 const getStanceDelta = (
   userLeaning: "left" | "right" | "neutral",
   agentLeaning: "left" | "right" | "neutral",
-  agreement: "agree" | "disagree" | "neutral",
+  agreement: number,
 ): number => {
-  if (agreement === "neutral") return 0;
+  if (agreement === 4) return 0;
+
+  const agreedWithAgent = agreement >= 5;
 
   const sameSide =
     agentLeaning === "neutral" ||
@@ -103,7 +94,7 @@ const getStanceDelta = (
     userLeaning === agentLeaning;
 
   const baseAgree = sameSide ? 1 : -1;
-  return agreement === "agree" ? baseAgree : -baseAgree;
+  return agreedWithAgent ? baseAgree : -baseAgree;
 };
 
 const AnalysisTab = ({
@@ -145,9 +136,11 @@ const AnalysisTab = ({
   const userLeaning = getPoliticalLeaning(politicalOrientationStr);
   const agentLeaning = getAgentLeaning(agentPosition);
 
-  // Build progression through the conversation
   const assistantMessages = messages.filter(
-    (m) => m.role === "assistant" && m.status === "completed" && m.agreement,
+    (m) =>
+      m.role === "assistant" &&
+      m.status === "completed" &&
+      m.agreement !== undefined,
   );
 
   const progression: { round: number; stance: number; agreement: string }[] =
@@ -158,13 +151,18 @@ const AnalysisTab = ({
     progression.push({ round: 0, stance: current, agreement: "start" });
 
     assistantMessages.forEach((msg, i) => {
-      if (!msg.agreement) return;
+      if (msg.agreement === undefined) return;
       const delta = getStanceDelta(userLeaning, agentLeaning, msg.agreement);
       current = Math.min(7, Math.max(1, current + delta));
       progression.push({
         round: i + 1,
         stance: current,
-        agreement: msg.agreement,
+        agreement:
+          msg.agreement <= 3
+            ? "disagree"
+            : msg.agreement === 4
+              ? "neutral"
+              : "agree",
       });
     });
   }
@@ -186,7 +184,6 @@ const AnalysisTab = ({
 
   return (
     <div className="space-y-4 py-4">
-      {/* Topic */}
       <Card>
         <CardHeader>
           <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -198,10 +195,9 @@ const AnalysisTab = ({
         </CardContent>
       </Card>
 
-      {/* Stance summary */}
       <div className="grid grid-cols-3 gap-3">
         <Card>
-          <CardContent>
+          <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground mb-1">Initial Stance</p>
             <p className="text-2xl font-bold">{initialStance ?? "—"}</p>
             {initialStance && (
@@ -212,7 +208,7 @@ const AnalysisTab = ({
           </CardContent>
         </Card>
         <Card>
-          <CardContent>
+          <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground mb-1">After Debate</p>
             <p className="text-2xl font-bold">
               {conversationFinalStance ?? "—"}
@@ -225,7 +221,7 @@ const AnalysisTab = ({
           </CardContent>
         </Card>
         <Card>
-          <CardContent>
+          <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground mb-1">Survey Final</p>
             <p className="text-2xl font-bold">{surveyFinalStance ?? "—"}</p>
             {surveyFinalStance && (
@@ -237,10 +233,9 @@ const AnalysisTab = ({
         </Card>
       </div>
 
-      {/* Change summary */}
       {totalChange !== null && (
         <Card>
-          <CardContent>
+          <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground mb-1">
               Total Shift (debate)
             </p>
@@ -269,7 +264,6 @@ const AnalysisTab = ({
         </Card>
       )}
 
-      {/* Progression chart */}
       {progression.length > 1 && (
         <Card>
           <CardHeader className="pb-2">
@@ -287,7 +281,7 @@ const AnalysisTab = ({
                     display: "inline-block",
                   }}
                 />
-                Agreed
+                Agreed (5–7)
               </span>
               <span className="flex items-center gap-1">
                 <span
@@ -299,7 +293,7 @@ const AnalysisTab = ({
                     display: "inline-block",
                   }}
                 />
-                Disagreed
+                Disagreed (1–3)
               </span>
               <span className="flex items-center gap-1">
                 <span
@@ -311,7 +305,7 @@ const AnalysisTab = ({
                     display: "inline-block",
                   }}
                 />
-                Neutral
+                Neutral (4)
               </span>
             </div>
           </CardHeader>
@@ -456,11 +450,12 @@ const ConversationSheet = ({
                           </div>
                         </div>
                       </MessageContent>
-                      {message.role === "assistant" && message.agreement && (
-                        <div className="shrink-0 pt-1 absolute -top-3 -right-3">
-                          {getAgreementIcon(message.agreement)}
-                        </div>
-                      )}
+                      {message.role === "assistant" &&
+                        message.agreement !== undefined && (
+                          <div className="shrink-0 pt-1 absolute -top-3 -right-3">
+                            {getAgreementIcon(message.agreement)}
+                          </div>
+                        )}
                     </Message>
                   ))}
                 </div>

@@ -64,10 +64,7 @@ const ConversationView = ({
   );
   const hasResponded = !!lastAssistantMessage?.agreement;
 
-  const handleAgreement = async (
-    messageId: MessageId,
-    agreement: "agree" | "disagree" | "neutral",
-  ) => {
+  const handleAgreement = async (messageId: MessageId, agreement: number) => {
     await updateMessageAgreement({ id: messageId, agreement });
   };
 
@@ -170,6 +167,10 @@ const ConversationView = ({
             isProcessing={!!isProcessing}
             hasResponded={hasResponded}
             agreement={lastAssistantMessage?.agreement}
+            onAgreement={(value) =>
+              lastAssistantMessage &&
+              handleAgreement(lastAssistantMessage._id, value)
+            }
           />
         ))}
     </div>

@@ -50,9 +50,7 @@ export default defineSchema({
       v.literal("completed"),
       v.literal("error"),
     ),
-    agreement: v.optional(
-      v.union(v.literal("agree"), v.literal("disagree"), v.literal("neutral")),
-    ),
+    agreement: v.optional(v.number()),
     updatedAt: v.number(),
   }).index("by_conversation", ["conversationId"]),
 

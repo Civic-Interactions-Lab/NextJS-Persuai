@@ -13,6 +13,7 @@ import {
   INITIAL_TITLE,
   TITLE_GENERATION_PROMPT,
 } from "@/features/conversation/constants/ai-agents";
+import { LIKERT_LABELS } from "@/features/survey/components/likert-scale";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 const groq = createGroq({ apiKey: process.env.GROQ_API_KEY });
@@ -75,26 +76,36 @@ export async function POST(request: Request) {
     const provider = providerSetting?.value ?? "groq";
     const modelName = modelSetting?.value ?? "llama3-8b-8192";
 
-    console.log("Provider:", provider);
-    console.log("Model:", modelName);
-    console.log("System Prompt:", systemPrompt);
+    const messagesWithRatings =
+      messages.length > 0
+        ? messages.flatMap((msg) => {
+            const result: { role: "user" | "assistant"; content: string }[] = [
+              { role: msg.role as "user" | "assistant", content: msg.content },
+            ];
+            if (
+              msg.role === "assistant" &&
+              msg.agreement !== undefined &&
+              msg.status === "completed"
+            ) {
+              result.push({
+                role: "user",
+                content: `[My rating of your previous response: ${msg.agreement}/7 — ${LIKERT_LABELS[msg.agreement] ?? ""}. Please take this into account in your next response.]`,
+              });
+            }
+            return result;
+          })
+        : [
+            {
+              role: "user" as const,
+              content: `Please open the debate on this topic: "${topic.issue}"`,
+            },
+          ];
 
     try {
       const { text } = await generateText({
         model: getModel(provider, modelName),
         system: systemPrompt,
-        messages:
-          messages.length > 0
-            ? messages.map((msg) => ({
-                role: msg.role as "user" | "assistant",
-                content: msg.content,
-              }))
-            : [
-                {
-                  role: "user" as const,
-                  content: `Please open the debate on this topic: "${topic.issue}"`,
-                },
-              ],
+        messages: messagesWithRatings,
       });
 
       await convex.mutation(api.db.messages.updateMessage, {

@@ -100,11 +100,7 @@ export const updateMessage = mutation({
 export const updateMessageAgreement = mutation({
   args: {
     id: v.id("messages"),
-    agreement: v.union(
-      v.literal("agree"),
-      v.literal("disagree"),
-      v.literal("neutral"),
-    ),
+    agreement: v.number(),
   },
   handler: async (ctx, args) => {
     const message = await ctx.db.get(args.id);
