@@ -35,7 +35,7 @@ interface ConsentDialogProps {
 const ConsentDialog = ({ externalId }: ConsentDialogProps) => {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
-  const [checked, setChecked] = useState(true);
+  const [checked, setChecked] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
   const [hasScrolledToEnd, setHasScrolledToEnd] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
