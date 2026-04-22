@@ -43,6 +43,34 @@ export type SurveyAnswer = { questionId: string; value: string };
 export type Consent = Doc<"consents">;
 export type ConsentId = Id<"consents">;
 
+// ── LLM Conversations ──────────────────────────────────────────────────────
+export type LlmConversation = Doc<"llmConversations">;
+export type LlmConversationId = Id<"llmConversations">;
+export type LlmConversationStatus = "idle" | "running" | "completed" | "error";
+
+// ── LLM Messages ───────────────────────────────────────────────────────────
+export type LlmMessage = Doc<"llmMessages">;
+export type LlmMessageId = Id<"llmMessages">;
+export type LlmMessageRole = "persona" | "agent";
+
+// ── LLM Personas ───────────────────────────────────────────────────────────
+export type LlmPersona = Doc<"llmPersonas">;
+export type LlmPersonaId = Id<"llmPersonas">;
+export type DebateStyle =
+  | "logical"
+  | "emotional"
+  | "aggressive"
+  | "cautious"
+  | "balanced";
+export type PoliticalLeaning =
+  | "far_left"
+  | "left"
+  | "center_left"
+  | "center"
+  | "center_right"
+  | "right"
+  | "far_right";
+
 // ── Conversation Metadata ──────────────────────────────────────────────────
 export type ConversationMetadata = {
   topic: {
