@@ -85,4 +85,72 @@ export default defineSchema({
     key: v.string(),
     value: v.string(),
   }).index("by_key", ["key"]),
+
+  // ── LLM Messages (LLM vs LLM) ─────────────────────────────────────────────
+
+  llmMessages: defineTable({
+    llmConversationId: v.id("llmConversations"),
+    role: v.union(v.literal("persona"), v.literal("agent")),
+    content: v.string(),
+    status: v.union(
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("error"),
+    ),
+    round: v.number(),
+    updatedAt: v.number(),
+  }).index("by_llm_conversation", ["llmConversationId"]),
+
+  // ── LLM Conversations (LLM vs LLM) ────────────────────────────────────────
+
+  llmConversations: defineTable({
+    title: v.string(),
+    personaId: v.id("llmPersonas"),
+    agentId: v.id("agents"),
+    topicId: v.id("topics"),
+    status: v.union(
+      v.literal("idle"),
+      v.literal("running"),
+      v.literal("completed"),
+      v.literal("error"),
+    ),
+    roundCount: v.number(),
+    maxRounds: v.number(),
+    metadata: v.optional(v.any()),
+    updatedAt: v.number(),
+  })
+    .index("by_updatedAt", ["updatedAt"])
+    .index("by_status", ["status"]),
+
+  // ── LLM Personas ──────────────────────────────────────────────────────────
+
+  llmPersonas: defineTable({
+    name: v.string(),
+    bio: v.string(),
+    stance: v.string(),
+    debateStyle: v.union(
+      v.literal("logical"),
+      v.literal("emotional"),
+      v.literal("aggressive"),
+      v.literal("cautious"),
+      v.literal("balanced"),
+    ),
+    demographics: v.object({
+      age: v.optional(v.number()),
+      occupation: v.optional(v.string()),
+      politicalLeaning: v.optional(
+        v.union(
+          v.literal("far_left"),
+          v.literal("left"),
+          v.literal("center_left"),
+          v.literal("center"),
+          v.literal("center_right"),
+          v.literal("right"),
+          v.literal("far_right"),
+        ),
+      ),
+    }),
+    isActive: v.boolean(),
+    updatedAt: v.number(),
+  }).index("by_active", ["isActive"]),
 });

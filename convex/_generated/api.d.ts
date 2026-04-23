@@ -11,6 +11,9 @@
 import type * as db_agents from "../db/agents.js";
 import type * as db_consents from "../db/consents.js";
 import type * as db_conversations from "../db/conversations.js";
+import type * as db_llmConversations from "../db/llmConversations.js";
+import type * as db_llmMessages from "../db/llmMessages.js";
+import type * as db_llmPersonas from "../db/llmPersonas.js";
 import type * as db_messages from "../db/messages.js";
 import type * as db_participants from "../db/participants.js";
 import type * as db_settings from "../db/settings.js";
@@ -31,6 +34,9 @@ declare const fullApi: ApiFromModules<{
   "db/agents": typeof db_agents;
   "db/consents": typeof db_consents;
   "db/conversations": typeof db_conversations;
+  "db/llmConversations": typeof db_llmConversations;
+  "db/llmMessages": typeof db_llmMessages;
+  "db/llmPersonas": typeof db_llmPersonas;
   "db/messages": typeof db_messages;
   "db/participants": typeof db_participants;
   "db/settings": typeof db_settings;
