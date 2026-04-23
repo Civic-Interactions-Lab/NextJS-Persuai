@@ -78,17 +78,15 @@ const LlmConversationView = ({ conversationId }: LlmConversationViewProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation?._id, messages?.length]);
 
-  const runNextRound = async (): Promise<{
-    done: boolean;
-    retryAfterMs?: number;
-  }> => {
+  const callTurn = async (
+    turn: "persona" | "agent",
+  ): Promise<{ done: boolean; retryAfterMs?: number }> => {
     const res = await fetch("/api/llm-debate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ llmConversationId: conversationId }),
+      body: JSON.stringify({ llmConversationId: conversationId, turn }),
     });
 
-    // Rate limited — return how long to wait
     if (res.status === 429) {
       const retryAfter = res.headers.get("retry-after");
       const waitMs = retryAfter ? Number(retryAfter) * 1000 + 500 : 8000;
@@ -109,17 +107,28 @@ const LlmConversationView = ({ conversationId }: LlmConversationViewProps) => {
     try {
       let done = false;
       while (!done && !abortRef.current) {
-        const result = await runNextRound();
+        // ── Persona turn ──
+        let personaResult = await callTurn("persona");
+        while (personaResult.retryAfterMs) {
+          await new Promise((r) => setTimeout(r, personaResult.retryAfterMs));
+          personaResult = await callTurn("persona");
+        }
+        if (abortRef.current) break;
 
-        if (result.retryAfterMs) {
-          // Rate limited — wait the specified time then retry the same round
-          await new Promise((r) => setTimeout(r, result.retryAfterMs));
-          continue;
+        // Small gap so the UI shows the persona bubble before agent starts thinking
+        await new Promise((r) => setTimeout(r, 800));
+
+        // ── Agent turn ──
+        let agentResult = await callTurn("agent");
+        while (agentResult.retryAfterMs) {
+          await new Promise((r) => setTimeout(r, agentResult.retryAfterMs));
+          agentResult = await callTurn("agent");
         }
 
-        done = result.done;
+        done = agentResult.done;
         // Pause between rounds to stay within TPM limits
-        if (!done) await new Promise((r) => setTimeout(r, 3000));
+        if (!done && !abortRef.current)
+          await new Promise((r) => setTimeout(r, 2000));
       }
     } catch (err) {
       setRunError("Something went wrong. You can try resuming.");
@@ -151,9 +160,7 @@ const LlmConversationView = ({ conversationId }: LlmConversationViewProps) => {
   const isCompleted = conversation?.status === "completed";
   const isError = conversation?.status === "error";
   const canResume =
-    !isRunning &&
-    !isCompleted &&
-    (conversation?.status === "idle" || isError);
+    !isRunning && !isCompleted && (conversation?.status === "idle" || isError);
 
   const personaName = conversation?.metadata?.persona?.name ?? "Persona";
   const agentName = conversation?.metadata?.agent?.name ?? "Agent";
@@ -234,7 +241,7 @@ const LlmConversationView = ({ conversationId }: LlmConversationViewProps) => {
       {/* Message area */}
       <div className="relative flex-1 min-h-0">
         <Conversation className="absolute inset-0">
-          <ConversationContent className="px-4 py-4 space-y-1 max-w-3xl mx-auto w-full">
+          <ConversationContent className="px-4 py-4 space-y-1 max-w-4xl mx-auto w-full">
             {messages.length === 0 && !isRunning ? (
               <div className="flex items-center justify-center pt-[25vh] text-muted-foreground text-sm">
                 Press Start to begin the debate.
@@ -287,6 +294,24 @@ interface LlmMessageBubbleProps {
   agentName: string;
 }
 
+// Agreement styling applied to the agent bubble
+const getAgentBubbleStyle = (agreement?: string) => {
+  if (!agreement) return "";
+  if (agreement === "agree")
+    return "border-l-4 border-l-green-400 bg-green-50/60 dark:bg-green-950/20 dark:border-l-green-500";
+  if (agreement === "disagree")
+    return "border-l-4 border-l-red-400 bg-red-50/60 dark:bg-red-950/20 dark:border-l-red-500";
+  return "border-l-4 border-l-yellow-400 bg-yellow-50/60 dark:bg-yellow-950/20 dark:border-l-yellow-500";
+};
+
+const getAgreementBadgeStyle = (agreement: string) => {
+  if (agreement === "agree")
+    return "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400";
+  if (agreement === "disagree")
+    return "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400";
+  return "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400";
+};
+
 const LlmMessageBubble = ({
   message,
   personaName,
@@ -305,26 +330,38 @@ const LlmMessageBubble = ({
     >
       {/* Avatar — only shown for agent (left side) */}
       {!isPersona && (
-        <div className="shrink-0 size-7 rounded-full bg-muted flex items-center justify-center">
+        <div className="shrink-0 size-7 rounded-full bg-muted flex items-center justify-center self-start mt-5">
           <Bot className="size-4 text-muted-foreground" />
         </div>
       )}
 
-      <div className={cn("flex flex-col gap-1", isPersona ? "items-end" : "items-start")}>
+      <div
+        className={cn(
+          "flex flex-col gap-1",
+          isPersona ? "items-end" : "items-start",
+        )}
+      >
         <span className="text-[10px] text-muted-foreground px-1">
           {displayName} · Round {message.round}
         </span>
-        <Message from={isPersona ? "user" : "assistant"} className="max-w-[75vw] sm:max-w-[65%]">
+
+        <Message
+          from={isPersona ? "user" : "assistant"}
+          className={cn(
+            "max-w-[75vw] sm:max-w-[65%] min-w-32 transition-colors duration-300 pl-2",
+            !isPersona && getAgentBubbleStyle(message.agreement),
+          )}
+        >
           <MessageContent>
-            <div className={cn(!isPersona ? "p-3" : "")}>
+            <div className="p-1 text-left">
               {message.status === "processing" ? (
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <LoaderIcon className="size-4 animate-spin" />
+                <div className="flex w-full items-center gap-2 text-muted-foreground text-sm">
+                  <LoaderIcon className="size-4 animate-spin shrink-0" />
                   <span>Thinking...</span>
                 </div>
               ) : message.status === "error" ? (
                 <div className="flex items-center gap-2 text-destructive text-sm">
-                  <AlertCircleIcon className="size-4" />
+                  <AlertCircleIcon className="size-4 shrink-0" />
                   <span>Failed to generate response</span>
                 </div>
               ) : (
@@ -332,6 +369,26 @@ const LlmMessageBubble = ({
               )}
             </div>
           </MessageContent>
+
+          {/* Agreement badge shown at the bottom of agent bubbles */}
+          {!isPersona &&
+            message.agreement &&
+            message.status === "completed" && (
+              <div className="px-3 pb-2">
+                <span
+                  className={cn(
+                    "text-[10px] font-medium px-2 py-0.5 rounded-full",
+                    getAgreementBadgeStyle(message.agreement),
+                  )}
+                >
+                  {message.agreement === "agree"
+                    ? `✓ ${personaName} agreed`
+                    : message.agreement === "disagree"
+                      ? `✗ ${personaName} disagreed`
+                      : `~ ${personaName} was neutral`}
+                </span>
+              </div>
+            )}
         </Message>
       </div>
     </div>

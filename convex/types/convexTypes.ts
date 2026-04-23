@@ -52,6 +52,7 @@ export type LlmConversationStatus = "idle" | "running" | "completed" | "error";
 export type LlmMessage = Doc<"llmMessages">;
 export type LlmMessageId = Id<"llmMessages">;
 export type LlmMessageRole = "persona" | "agent";
+export type LlmMessageAgreement = "agree" | "disagree" | "neutral";
 
 // ── LLM Personas ───────────────────────────────────────────────────────────
 export type LlmPersona = Doc<"llmPersonas">;
