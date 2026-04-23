@@ -8,6 +8,7 @@ import { api } from "../../../../convex/_generated/api";
 import {
   LlmConversationId,
   LlmMessageId,
+  LlmMessageAgreement,
 } from "../../../../convex/types/convexTypes";
 import { TITLE_GENERATION_PROMPT } from "@/features/conversation/constants/ai-agents";
 
@@ -116,6 +117,16 @@ Additional rules:
 - Always respond directly to the human's last argument`;
 }
 
+// ── Parse agreement label from persona text ───────────────────────────────────
+function parseAgreement(text: string): LlmMessageAgreement | undefined {
+  const lower = text.toLowerCase();
+  if (lower.startsWith("i agree")) return "agree";
+  if (lower.startsWith("i disagree")) return "disagree";
+  if (lower.startsWith("i'm neutral") || lower.startsWith("i am neutral"))
+    return "neutral";
+  return undefined;
+}
+
 // ── Rate-limit error propagator ───────────────────────────────────────────────
 function rateLimit429(error: unknown): NextResponse | null {
   const err = error as {
@@ -218,6 +229,19 @@ export async function POST(request: Request) {
         maxRounds,
       );
 
+      // ── Round 1: just post the topic issue verbatim, no LLM call ────────────
+      if (currentRound === 1) {
+        await convex.mutation(api.db.llmMessages.createMessage, {
+          llmConversationId: llmConversationId as LlmConversationId,
+          role: "persona",
+          content: metadata.topic.issue,
+          status: "completed",
+          round: currentRound,
+        });
+        return NextResponse.json({ done: false, turn: "persona" });
+      }
+
+      // ── Round 2+: LLM generates the persona's response ────────────────────
       const personaMsgId = await convex.mutation(
         api.db.llmMessages.createMessage,
         {
@@ -230,22 +254,13 @@ export async function POST(request: Request) {
       );
 
       try {
-        const personaMessages =
-          currentRound === 1
-            ? [
-                {
-                  role: "user" as const,
-                  content: `Begin the debate. State your opening position on "${metadata.topic.issue}" speaking as yourself.`,
-                },
-              ]
-            : personaHistory;
-
         const { text } = await generateText({
           model,
           system: personaSystemPrompt,
-          messages: personaMessages,
+          messages: personaHistory,
         });
         const personaText = text.trim();
+        const agreement = parseAgreement(personaText);
 
         await convex.mutation(api.db.llmMessages.updateMessage, {
           id: personaMsgId as LlmMessageId,
@@ -253,12 +268,25 @@ export async function POST(request: Request) {
           status: "completed",
         });
 
-        // Generate title after round 1 — non-blocking, non-fatal
-        if (currentRound === 1 && conversation.title === "New Debate") {
+        // Store the agreement on the previous agent message (the one the persona reacted to)
+        if (agreement) {
+          const prevAgentMsg = [...completedMessages]
+            .reverse()
+            .find((m) => m.role === "agent");
+          if (prevAgentMsg) {
+            await convex.mutation(api.db.llmMessages.updateMessage, {
+              id: prevAgentMsg._id as LlmMessageId,
+              agreement,
+            });
+          }
+        }
+
+        // Generate title after round 2 (first real LLM persona response) — non-blocking
+        if (currentRound === 2 && conversation.title === "New Debate") {
           generateText({
             model: google("gemini-2.5-flash"),
             system: TITLE_GENERATION_PROMPT,
-            prompt: `Topic: ${metadata.topic.issue}\n\nOpening argument: ${personaText}`,
+            prompt: `Topic: ${metadata.topic.issue}\n\nFirst response: ${personaText}`,
           })
             .then(({ text: t }) =>
               convex.mutation(api.db.llmConversations.updateTitle, {

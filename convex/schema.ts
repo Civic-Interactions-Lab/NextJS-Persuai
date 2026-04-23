@@ -97,6 +97,9 @@ export default defineSchema({
       v.literal("completed"),
       v.literal("error"),
     ),
+    agreement: v.optional(
+      v.union(v.literal("agree"), v.literal("disagree"), v.literal("neutral")),
+    ),
     round: v.number(),
     updatedAt: v.number(),
   }).index("by_llm_conversation", ["llmConversationId"]),

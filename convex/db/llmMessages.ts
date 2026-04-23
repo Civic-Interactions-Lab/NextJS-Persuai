@@ -39,6 +39,9 @@ export const updateMessage = mutation({
         v.literal("error"),
       ),
     ),
+    agreement: v.optional(
+      v.union(v.literal("agree"), v.literal("disagree"), v.literal("neutral")),
+    ),
   },
   handler: async (ctx, args) => {
     const { id, ...fields } = args;

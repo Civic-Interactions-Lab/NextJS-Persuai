@@ -294,6 +294,24 @@ interface LlmMessageBubbleProps {
   agentName: string;
 }
 
+// Agreement styling applied to the agent bubble
+const getAgentBubbleStyle = (agreement?: string) => {
+  if (!agreement) return "";
+  if (agreement === "agree")
+    return "border-l-4 border-l-green-400 bg-green-50/60 dark:bg-green-950/20 dark:border-l-green-500";
+  if (agreement === "disagree")
+    return "border-l-4 border-l-red-400 bg-red-50/60 dark:bg-red-950/20 dark:border-l-red-500";
+  return "border-l-4 border-l-yellow-400 bg-yellow-50/60 dark:bg-yellow-950/20 dark:border-l-yellow-500";
+};
+
+const getAgreementBadgeStyle = (agreement: string) => {
+  if (agreement === "agree")
+    return "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400";
+  if (agreement === "disagree")
+    return "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400";
+  return "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400";
+};
+
 const LlmMessageBubble = ({
   message,
   personaName,
@@ -306,13 +324,13 @@ const LlmMessageBubble = ({
   return (
     <div
       className={cn(
-        "flex gap-2 mb-16",
+        "flex gap-2 mb-3",
         isPersona ? "flex-row-reverse items-end" : "flex-row items-end",
       )}
     >
       {/* Avatar — only shown for agent (left side) */}
       {!isPersona && (
-        <div className="shrink-0 size-7 rounded-full bg-muted flex items-center justify-center">
+        <div className="shrink-0 size-7 rounded-full bg-muted flex items-center justify-center self-start mt-5">
           <Bot className="size-4 text-muted-foreground" />
         </div>
       )}
@@ -326,9 +344,13 @@ const LlmMessageBubble = ({
         <span className="text-[10px] text-muted-foreground px-1">
           {displayName} · Round {message.round}
         </span>
+
         <Message
           from={isPersona ? "user" : "assistant"}
-          className="max-w-[75vw] sm:max-w-[65%] min-w-32"
+          className={cn(
+            "max-w-[75vw] sm:max-w-[65%] min-w-32 transition-colors duration-300 pl-2",
+            !isPersona && getAgentBubbleStyle(message.agreement),
+          )}
         >
           <MessageContent>
             <div className="p-1 text-left">
@@ -347,6 +369,26 @@ const LlmMessageBubble = ({
               )}
             </div>
           </MessageContent>
+
+          {/* Agreement badge shown at the bottom of agent bubbles */}
+          {!isPersona &&
+            message.agreement &&
+            message.status === "completed" && (
+              <div className="px-3 pb-2">
+                <span
+                  className={cn(
+                    "text-[10px] font-medium px-2 py-0.5 rounded-full",
+                    getAgreementBadgeStyle(message.agreement),
+                  )}
+                >
+                  {message.agreement === "agree"
+                    ? `✓ ${personaName} agreed`
+                    : message.agreement === "disagree"
+                      ? `✗ ${personaName} disagreed`
+                      : `~ ${personaName} was neutral`}
+                </span>
+              </div>
+            )}
         </Message>
       </div>
     </div>
