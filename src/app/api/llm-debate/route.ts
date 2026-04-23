@@ -83,7 +83,8 @@ Additional rules:
 - Directly challenge the other side's last argument
 - Do NOT mention you are an AI or break character
 - Do NOT use stage directions or parenthetical sounds like "(clears throat)", "(scoffs)" — plain text only
-- Do NOT start with your own name or a label`;
+- Do NOT start with your own name or a label
+- REQUIRED: Start every response with exactly one of "I agree —", "I disagree —", or "I'm neutral —" based on your honest reaction to the other side's last point, then continue your argument. Your overall stance shapes your bias, but the label must reflect your reaction to what they just said`;
 }
 
 function buildAgentSystemPrompt(
@@ -115,9 +116,25 @@ Additional rules:
 - Always respond directly to the human's last argument`;
 }
 
+// ── Rate-limit error propagator ───────────────────────────────────────────────
+function rateLimit429(error: unknown): NextResponse | null {
+  const err = error as {
+    statusCode?: number;
+    responseHeaders?: Record<string, string>;
+  };
+  if (err?.statusCode === 429) {
+    const retryAfter = err?.responseHeaders?.["retry-after"] ?? "10";
+    return NextResponse.json(
+      { error: "Rate limited" },
+      { status: 429, headers: { "retry-after": retryAfter } },
+    );
+  }
+  return null;
+}
+
 export async function POST(request: Request) {
   try {
-    const { llmConversationId } = await request.json();
+    const { llmConversationId, turn } = await request.json();
 
     if (!llmConversationId) {
       return NextResponse.json(
@@ -152,11 +169,6 @@ export async function POST(request: Request) {
       );
     }
 
-    await convex.mutation(api.db.llmConversations.updateStatus, {
-      id: llmConversationId as LlmConversationId,
-      status: "running",
-    });
-
     const [providerSetting, modelSetting, allMessages] = await Promise.all([
       convex.query(api.db.settings.getSetting, { key: "llm_provider" }),
       convex.query(api.db.settings.getSetting, { key: "llm_model" }),
@@ -169,35 +181,24 @@ export async function POST(request: Request) {
     const modelName = modelSetting?.value ?? "llama3-8b-8192";
     const model = getModel(provider, modelName);
 
+    // currentRound is always roundCount + 1 — both persona and agent turns
+    // share the same round number. incrementRound only happens after agent turn.
     const currentRound = conversation.roundCount + 1;
     const maxRounds = conversation.maxRounds;
 
-    const personaSystemPrompt = buildPersonaSystemPrompt(
-      metadata,
-      currentRound,
-      maxRounds,
-    );
-    const agentSystemPrompt = buildAgentSystemPrompt(
-      metadata,
-      currentRound,
-      maxRounds,
-    );
-
-    // Only include completed messages with real content, sorted by round
+    // Only completed messages with real content, sorted chronologically
     const completedMessages = allMessages
       .filter((m) => m.status === "completed" && m.content.trim().length > 0)
       .sort((a, b) => a.round - b.round || a._creationTime - b._creationTime);
 
-    // Build interleaved history per participant.
-    // Persona POV: its own messages = "assistant", agent messages = "user"
-    // (persona responds to the agent's challenge, so agent messages are the "prompt")
+    // Persona POV: agent msgs = "user" (prompt), persona msgs = "assistant" (own replies)
     const personaHistory: { role: "user" | "assistant"; content: string }[] =
       completedMessages.map((m) => ({
         role: m.role === "agent" ? "user" : "assistant",
         content: m.content,
       }));
 
-    // Agent POV: agent messages = "assistant", persona messages = "user"
+    // Agent POV: agent msgs = "assistant" (own replies), persona msgs = "user" (prompt)
     const agentHistory: { role: "user" | "assistant"; content: string }[] =
       completedMessages.map((m) => ({
         role: m.role === "agent" ? "assistant" : "user",
@@ -205,149 +206,166 @@ export async function POST(request: Request) {
       }));
 
     // ── PERSONA TURN ──────────────────────────────────────────────────────────
-    const personaMsgId = await convex.mutation(
-      api.db.llmMessages.createMessage,
-      {
-        llmConversationId: llmConversationId as LlmConversationId,
-        role: "persona",
-        content: "",
-        status: "processing",
-        round: currentRound,
-      },
-    );
-
-    let personaText = "";
-    try {
-      // For round 1 the persona opens the debate; for subsequent rounds it responds
-      // to the agent's last message (which is always the last item in personaHistory).
-      // The history already ends with a "user" (agent) message for rounds > 1.
-      const personaMessages =
-        currentRound === 1
-          ? [
-              {
-                role: "user" as const,
-                content: `Begin the debate. State your opening position on "${metadata.topic.issue}" in 2-3 paragraphs, speaking as yourself.`,
-              },
-            ]
-          : personaHistory;
-
-      const { text } = await generateText({
-        model,
-        system: personaSystemPrompt,
-        messages: personaMessages,
-      });
-      personaText = text.trim();
-
-      await convex.mutation(api.db.llmMessages.updateMessage, {
-        id: personaMsgId as LlmMessageId,
-        content: personaText,
-        status: "completed",
-      });
-    } catch (err) {
-      await convex.mutation(api.db.llmMessages.updateMessage, {
-        id: personaMsgId as LlmMessageId,
-        status: "error",
-      });
+    if (turn === "persona") {
       await convex.mutation(api.db.llmConversations.updateStatus, {
         id: llmConversationId as LlmConversationId,
-        status: "error",
+        status: "running",
       });
-      throw err;
-    }
 
-    // ── AGENT TURN ────────────────────────────────────────────────────────────
-    const agentMsgId = await convex.mutation(api.db.llmMessages.createMessage, {
-      llmConversationId: llmConversationId as LlmConversationId,
-      role: "agent",
-      content: "",
-      status: "processing",
-      round: currentRound,
-    });
+      const personaSystemPrompt = buildPersonaSystemPrompt(
+        metadata,
+        currentRound,
+        maxRounds,
+      );
 
-    let agentText = "";
-    try {
-      // Agent history ends with the agent's own last reply ("assistant").
-      // Append the fresh persona message as "user" so the agent responds to it.
-      // On round 1 history is empty, so we just send the opening persona message.
-      const agentMessages: { role: "user" | "assistant"; content: string }[] = [
-        ...agentHistory,
-        { role: "user", content: personaText },
-      ];
+      const personaMsgId = await convex.mutation(
+        api.db.llmMessages.createMessage,
+        {
+          llmConversationId: llmConversationId as LlmConversationId,
+          role: "persona",
+          content: "",
+          status: "processing",
+          round: currentRound,
+        },
+      );
 
-      const { text } = await generateText({
-        model,
-        system: agentSystemPrompt,
-        messages: agentMessages,
-      });
-      agentText = text.trim();
-
-      await convex.mutation(api.db.llmMessages.updateMessage, {
-        id: agentMsgId as LlmMessageId,
-        content: agentText,
-        status: "completed",
-      });
-    } catch (err) {
-      await convex.mutation(api.db.llmMessages.updateMessage, {
-        id: agentMsgId as LlmMessageId,
-        status: "error",
-      });
-      await convex.mutation(api.db.llmConversations.updateStatus, {
-        id: llmConversationId as LlmConversationId,
-        status: "error",
-      });
-      throw err;
-    }
-
-    // ── INCREMENT ROUND ───────────────────────────────────────────────────────
-    await convex.mutation(api.db.llmConversations.incrementRound, {
-      id: llmConversationId as LlmConversationId,
-    });
-
-    const updated = await convex.query(api.db.llmConversations.getById, {
-      id: llmConversationId as LlmConversationId,
-    });
-
-    // Generate title after round 1
-    if (currentRound === 1 && conversation.title === "New Debate") {
       try {
-        const { text: generatedTitle } = await generateText({
-          model: google("gemini-2.5-flash"),
-          system: TITLE_GENERATION_PROMPT,
-          prompt: `Topic: ${metadata.topic.issue}\n\nOpening argument: ${personaText}`,
+        const personaMessages =
+          currentRound === 1
+            ? [
+                {
+                  role: "user" as const,
+                  content: `Begin the debate. State your opening position on "${metadata.topic.issue}" speaking as yourself.`,
+                },
+              ]
+            : personaHistory;
+
+        const { text } = await generateText({
+          model,
+          system: personaSystemPrompt,
+          messages: personaMessages,
         });
-        await convex.mutation(api.db.llmConversations.updateTitle, {
+        const personaText = text.trim();
+
+        await convex.mutation(api.db.llmMessages.updateMessage, {
+          id: personaMsgId as LlmMessageId,
+          content: personaText,
+          status: "completed",
+        });
+
+        // Generate title after round 1 — non-blocking, non-fatal
+        if (currentRound === 1 && conversation.title === "New Debate") {
+          generateText({
+            model: google("gemini-2.5-flash"),
+            system: TITLE_GENERATION_PROMPT,
+            prompt: `Topic: ${metadata.topic.issue}\n\nOpening argument: ${personaText}`,
+          })
+            .then(({ text: t }) =>
+              convex.mutation(api.db.llmConversations.updateTitle, {
+                id: llmConversationId as LlmConversationId,
+                title: t.trim(),
+              }),
+            )
+            .catch(() => {});
+        }
+
+        return NextResponse.json({ done: false, turn: "persona" });
+      } catch (err) {
+        await convex.mutation(api.db.llmMessages.updateMessage, {
+          id: personaMsgId as LlmMessageId,
+          status: "error",
+        });
+        await convex.mutation(api.db.llmConversations.updateStatus, {
           id: llmConversationId as LlmConversationId,
-          title: generatedTitle.trim(),
+          status: "error",
         });
-      } catch {
-        // Non-fatal
+        throw err;
       }
     }
 
-    return NextResponse.json({
-      done: updated?.status === "completed" || updated?.status === "error",
-      status: updated?.status,
-      roundCount: updated?.roundCount,
-    });
-  } catch (error: unknown) {
-    console.error("LLM debate error:", error);
+    // ── AGENT TURN ────────────────────────────────────────────────────────────
+    if (turn === "agent") {
+      const agentSystemPrompt = buildAgentSystemPrompt(
+        metadata,
+        currentRound,
+        maxRounds,
+      );
 
-    // Propagate rate limit errors so the client can back off and retry
-    const err = error as {
-      statusCode?: number;
-      responseHeaders?: Record<string, string>;
-    };
-    if (err?.statusCode === 429) {
-      const retryAfter = err?.responseHeaders?.["retry-after"] ?? "10";
-      return NextResponse.json(
-        { error: "Rate limited" },
+      // Find the persona message for this round (last persona msg in completed list)
+      const lastPersonaMsg = [...completedMessages]
+        .reverse()
+        .find((m) => m.role === "persona");
+
+      if (!lastPersonaMsg) {
+        return NextResponse.json(
+          { error: "No persona message found for agent to respond to" },
+          { status: 400 },
+        );
+      }
+
+      const agentMsgId = await convex.mutation(
+        api.db.llmMessages.createMessage,
         {
-          status: 429,
-          headers: { "retry-after": retryAfter },
+          llmConversationId: llmConversationId as LlmConversationId,
+          role: "agent",
+          content: "",
+          status: "processing",
+          round: currentRound,
         },
       );
+
+      try {
+        const agentMessages: { role: "user" | "assistant"; content: string }[] =
+          [
+            ...agentHistory,
+            { role: "user", content: lastPersonaMsg.content },
+          ];
+
+        const { text } = await generateText({
+          model,
+          system: agentSystemPrompt,
+          messages: agentMessages,
+        });
+
+        await convex.mutation(api.db.llmMessages.updateMessage, {
+          id: agentMsgId as LlmMessageId,
+          content: text.trim(),
+          status: "completed",
+        });
+      } catch (err) {
+        await convex.mutation(api.db.llmMessages.updateMessage, {
+          id: agentMsgId as LlmMessageId,
+          status: "error",
+        });
+        await convex.mutation(api.db.llmConversations.updateStatus, {
+          id: llmConversationId as LlmConversationId,
+          status: "error",
+        });
+        throw err;
+      }
+
+      // Increment round after both turns are done
+      await convex.mutation(api.db.llmConversations.incrementRound, {
+        id: llmConversationId as LlmConversationId,
+      });
+
+      const updated = await convex.query(api.db.llmConversations.getById, {
+        id: llmConversationId as LlmConversationId,
+      });
+
+      return NextResponse.json({
+        done: updated?.status === "completed" || updated?.status === "error",
+        turn: "agent",
+        status: updated?.status,
+        roundCount: updated?.roundCount,
+      });
     }
 
+    return NextResponse.json({ error: "Invalid turn parameter" }, { status: 400 });
+  } catch (error: unknown) {
+    console.error("LLM debate error:", error);
+    const rl = rateLimit429(error);
+    if (rl) return rl;
     return NextResponse.json(
       { error: "Failed to run debate round" },
       { status: 500 },
