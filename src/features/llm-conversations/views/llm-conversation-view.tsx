@@ -231,6 +231,19 @@ const LlmConversationView = ({ conversationId }: LlmConversationViewProps) => {
           <span className="font-medium">{agentName}</span>
           <span className="opacity-60">— Agent</span>
         </span>
+
+        {/* Pre-topic rating pill (shown as soon as it exists) */}
+        {conversation?.preTopicRating !== undefined && (
+          <span
+            className={cn(
+              "text-[10px] font-medium px-2 py-0.5 rounded-full",
+              getAgreementBadgeStyle(conversation.preTopicRating),
+            )}
+          >
+            Pre: {conversation.preTopicRating}/7 · {likertLabel(conversation.preTopicRating)}
+          </span>
+        )}
+
         <span className="flex items-center gap-1.5">
           <span className="opacity-60">Persona —</span>
           <span className="font-medium">{personaName}</span>
@@ -279,12 +292,91 @@ const LlmConversationView = ({ conversationId }: LlmConversationViewProps) => {
 
       {/* Footer */}
       {isCompleted && (
-        <div className="border-t px-4 py-3 text-xs text-muted-foreground text-center bg-muted/30 shrink-0">
-          Debate completed after {conversation.roundCount} rounds.
+        <div className="border-t px-4 py-3 shrink-0 bg-muted/30">
+          <p className="text-xs text-muted-foreground text-center mb-2">
+            Debate completed after {conversation.roundCount} rounds.
+          </p>
+          {/* Topic ratings */}
+          {(conversation.preTopicRating !== undefined ||
+            conversation.postTopicRating !== undefined) && (
+            <div className="flex items-center justify-center gap-6">
+              {conversation.preTopicRating !== undefined && (
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">
+                    Pre-debate
+                  </span>
+                  <span
+                    className={cn(
+                      "text-xs font-medium px-2 py-0.5 rounded-full",
+                      getAgreementBadgeStyle(conversation.preTopicRating),
+                    )}
+                  >
+                    {conversation.preTopicRating}/7 ·{" "}
+                    {likertLabel(conversation.preTopicRating)}
+                  </span>
+                </div>
+              )}
+              {conversation.preTopicRating !== undefined &&
+                conversation.postTopicRating !== undefined && (
+                  <span className="text-muted-foreground text-xs">→</span>
+                )}
+              {conversation.postTopicRating !== undefined && (
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">
+                    Post-debate
+                  </span>
+                  <span
+                    className={cn(
+                      "text-xs font-medium px-2 py-0.5 rounded-full",
+                      getAgreementBadgeStyle(conversation.postTopicRating),
+                    )}
+                  >
+                    {conversation.postTopicRating}/7 ·{" "}
+                    {likertLabel(conversation.postTopicRating)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </>
   );
+};
+
+/* ─── Likert helpers ─────────────────────────────────────────────────────── */
+// 1–3 = disagree, 4 = neutral, 5–7 = agree
+const likertLabel = (n: number): string => {
+  if (n === 1) return "Strongly Disagree";
+  if (n === 2) return "Disagree";
+  if (n === 3) return "Somewhat Disagree";
+  if (n === 4) return "Neutral";
+  if (n === 5) return "Somewhat Agree";
+  if (n === 6) return "Agree";
+  return "Strongly Agree";
+};
+
+const likertZone = (n: number): "agree" | "neutral" | "disagree" =>
+  n <= 3 ? "disagree" : n === 4 ? "neutral" : "agree";
+
+// Agreement styling applied to the agent bubble
+const getAgentBubbleStyle = (agreement?: number) => {
+  if (agreement === undefined) return "";
+  const zone = likertZone(agreement);
+  if (zone === "agree")
+    return "border-l-4 border-l-green-400 bg-green-50/60 dark:bg-green-950/20 dark:border-l-green-500";
+  if (zone === "disagree")
+    return "border-l-4 border-l-red-400 bg-red-50/60 dark:bg-red-950/20 dark:border-l-red-500";
+  return "border-l-4 border-l-yellow-400 bg-yellow-50/60 dark:bg-yellow-950/20 dark:border-l-yellow-500";
+};
+
+const getAgreementBadgeStyle = (agreement: number) => {
+  const zone = likertZone(agreement);
+  if (zone === "agree")
+    return "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400";
+  if (zone === "disagree")
+    return "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400";
+  return "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400";
 };
 
 /* ─── Individual Message Bubble ─────────────────────────────────────────── */
@@ -293,24 +385,6 @@ interface LlmMessageBubbleProps {
   personaName: string;
   agentName: string;
 }
-
-// Agreement styling applied to the agent bubble
-const getAgentBubbleStyle = (agreement?: string) => {
-  if (!agreement) return "";
-  if (agreement === "agree")
-    return "border-l-4 border-l-green-400 bg-green-50/60 dark:bg-green-950/20 dark:border-l-green-500";
-  if (agreement === "disagree")
-    return "border-l-4 border-l-red-400 bg-red-50/60 dark:bg-red-950/20 dark:border-l-red-500";
-  return "border-l-4 border-l-yellow-400 bg-yellow-50/60 dark:bg-yellow-950/20 dark:border-l-yellow-500";
-};
-
-const getAgreementBadgeStyle = (agreement: string) => {
-  if (agreement === "agree")
-    return "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400";
-  if (agreement === "disagree")
-    return "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400";
-  return "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400";
-};
 
 const LlmMessageBubble = ({
   message,
@@ -370,9 +444,9 @@ const LlmMessageBubble = ({
             </div>
           </MessageContent>
 
-          {/* Agreement badge shown at the bottom of agent bubbles */}
+          {/* Persona's rating of this agent response — shown at the bottom of agent bubbles */}
           {!isPersona &&
-            message.agreement &&
+            message.agreement !== undefined &&
             message.status === "completed" && (
               <div className="px-3 pb-2">
                 <span
@@ -381,11 +455,7 @@ const LlmMessageBubble = ({
                     getAgreementBadgeStyle(message.agreement),
                   )}
                 >
-                  {message.agreement === "agree"
-                    ? `✓ ${personaName} agreed`
-                    : message.agreement === "disagree"
-                      ? `✗ ${personaName} disagreed`
-                      : `~ ${personaName} was neutral`}
+                  {message.agreement}/7 · {likertLabel(message.agreement)} ({personaName})
                 </span>
               </div>
             )}

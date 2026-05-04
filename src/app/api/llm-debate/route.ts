@@ -8,7 +8,6 @@ import { api } from "../../../../convex/_generated/api";
 import {
   LlmConversationId,
   LlmMessageId,
-  LlmMessageAgreement,
 } from "../../../../convex/types/convexTypes";
 import { TITLE_GENERATION_PROMPT } from "@/features/conversation/constants/ai-agents";
 
@@ -84,8 +83,7 @@ Additional rules:
 - Directly challenge the other side's last argument
 - Do NOT mention you are an AI or break character
 - Do NOT use stage directions or parenthetical sounds like "(clears throat)", "(scoffs)" — plain text only
-- Do NOT start with your own name or a label
-- REQUIRED: Start every response with exactly one of "I agree —", "I disagree —", or "I'm neutral —" based on your honest reaction to the other side's last point, then continue your argument. Your overall stance shapes your bias, but the label must reflect your reaction to what they just said`;
+- Do NOT start with your own name or a label`;
 }
 
 function buildAgentSystemPrompt(
@@ -114,16 +112,15 @@ Additional rules:
 - NEVER say goodbye, farewell, or signal the end of the conversation unless this is the absolute last round
 - NEVER declare the debate over or complete early
 - Keep each reply to 2-4 focused paragraphs
-- Always respond directly to the human's last argument`;
+- Always respond directly to the human's last argument
+- REQUIRED: Your response must make your position unmistakably clear. Open with an explicit signal — such as "I agree", "I disagree", "I partially agree", "I find common ground", "I reject that", "I'm convinced", or similar plain language — so there is zero ambiguity about whether you agree, are neutral, or disagree with the human's last point.`;
 }
 
-// ── Parse agreement label from persona text ───────────────────────────────────
-function parseAgreement(text: string): LlmMessageAgreement | undefined {
-  const lower = text.toLowerCase();
-  if (lower.startsWith("i agree")) return "agree";
-  if (lower.startsWith("i disagree")) return "disagree";
-  if (lower.startsWith("i'm neutral") || lower.startsWith("i am neutral"))
-    return "neutral";
+// ── Parse a standalone 1–7 topic rating ──────────────────────────────────────
+// Used for pre-debate and post-debate topic rating from the persona.
+function parseTopicRating(text: string): number | undefined {
+  const match = text.match(/TOPIC_RATING:\s*([1-7])/i);
+  if (match) return Number(match[1]);
   return undefined;
 }
 
@@ -229,8 +226,33 @@ export async function POST(request: Request) {
         maxRounds,
       );
 
-      // ── Round 1: just post the topic issue verbatim, no LLM call ────────────
+      // ── Round 1: persona rates the topic (pre-debate), then posts the issue ──
       if (currentRound === 1) {
+        // Ask the persona to rate the topic before any debate
+        const preRatingPrompt = `You are ${metadata.persona.name}. Before this debate begins, rate how much you personally agree with the following topic statement on a scale of 1 to 7, where 1 = strongly disagree, 4 = neutral, 7 = strongly agree.
+
+Topic: "${metadata.topic.issue}"
+
+Your stance: ${metadata.persona.stance}
+
+Respond with ONLY this format (nothing else): TOPIC_RATING: N
+where N is your rating from 1 to 7.`;
+
+        try {
+          const { text: ratingText } = await generateText({
+            model,
+            prompt: preRatingPrompt,
+          });
+          const preRating = parseTopicRating(ratingText.trim()) ?? 4;
+          await convex.mutation(api.db.llmConversations.updateTopicRating, {
+            id: llmConversationId as LlmConversationId,
+            type: "pre",
+            rating: preRating,
+          });
+        } catch {
+          // Non-blocking — if rating fails, debate continues
+        }
+
         await convex.mutation(api.db.llmMessages.createMessage, {
           llmConversationId: llmConversationId as LlmConversationId,
           role: "persona",
@@ -254,13 +276,41 @@ export async function POST(request: Request) {
       );
 
       try {
+        const prevAgentMsg = [...completedMessages]
+          .reverse()
+          .find((m) => m.role === "agent");
+
+        // ── Step 1: persona rates the last agent message (dedicated call) ──────
+        // Separate structured call so the rating is always reliably extracted,
+        // independent of whether the persona remembers to include it in their reply.
+        let agreement: number | undefined;
+        if (prevAgentMsg) {
+          const ratingPrompt = `You are ${metadata.persona.name}. Read the following argument and rate how much you agree with it on a scale of 1 to 7.
+1 = strongly disagree, 2 = disagree, 3 = somewhat disagree, 4 = neutral, 5 = somewhat agree, 6 = agree, 7 = strongly agree.
+
+Your stance: ${metadata.persona.stance}
+Their argument: "${prevAgentMsg.content}"
+
+Reply with ONLY a single digit from 1 to 7. Nothing else.`;
+          try {
+            const { text: ratingText } = await generateText({
+              model,
+              prompt: ratingPrompt,
+            });
+            const parsed = ratingText.trim().match(/[1-7]/);
+            if (parsed) agreement = Number(parsed[0]);
+          } catch {
+            // Non-fatal — debate continues without rating
+          }
+        }
+
+        // ── Step 2: persona generates their reply ─────────────────────────────
         const { text } = await generateText({
           model,
           system: personaSystemPrompt,
           messages: personaHistory,
         });
         const personaText = text.trim();
-        const agreement = parseAgreement(personaText);
 
         await convex.mutation(api.db.llmMessages.updateMessage, {
           id: personaMsgId as LlmMessageId,
@@ -268,17 +318,12 @@ export async function POST(request: Request) {
           status: "completed",
         });
 
-        // Store the agreement on the previous agent message (the one the persona reacted to)
-        if (agreement) {
-          const prevAgentMsg = [...completedMessages]
-            .reverse()
-            .find((m) => m.role === "agent");
-          if (prevAgentMsg) {
-            await convex.mutation(api.db.llmMessages.updateMessage, {
-              id: prevAgentMsg._id as LlmMessageId,
-              agreement,
-            });
-          }
+        // Store the rating on the agent message the persona just reacted to
+        if (agreement !== undefined && prevAgentMsg) {
+          await convex.mutation(api.db.llmMessages.updateMessage, {
+            id: prevAgentMsg._id as LlmMessageId,
+            agreement,
+          });
         }
 
         // Generate title after round 2 (first real LLM persona response) — non-blocking
@@ -381,8 +426,33 @@ export async function POST(request: Request) {
         id: llmConversationId as LlmConversationId,
       });
 
+      const isDone =
+        updated?.status === "completed" || updated?.status === "error";
+
+      // ── Post-debate topic rating on final round ───────────────────────────
+      if (isDone && updated?.status === "completed") {
+        const postRatingPrompt = `You are ${metadata.persona.name}. The debate on the following topic has just concluded. Now rate how much you personally agree with the topic statement on a scale of 1 to 7, where 1 = strongly disagree, 4 = neutral, 7 = strongly agree. Reflect honestly on whether the debate changed your view.
+
+Topic: "${metadata.topic.issue}"
+Your original stance: ${metadata.persona.stance}
+
+Respond with ONLY this format (nothing else): TOPIC_RATING: N
+where N is your rating from 1 to 7.`;
+
+        generateText({ model, prompt: postRatingPrompt })
+          .then(({ text: ratingText }) => {
+            const postRating = parseTopicRating(ratingText.trim()) ?? 4;
+            return convex.mutation(api.db.llmConversations.updateTopicRating, {
+              id: llmConversationId as LlmConversationId,
+              type: "post",
+              rating: postRating,
+            });
+          })
+          .catch(() => {});
+      }
+
       return NextResponse.json({
-        done: updated?.status === "completed" || updated?.status === "error",
+        done: isDone,
         turn: "agent",
         status: updated?.status,
         roundCount: updated?.roundCount,

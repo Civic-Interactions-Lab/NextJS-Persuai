@@ -52,7 +52,8 @@ export type LlmConversationStatus = "idle" | "running" | "completed" | "error";
 export type LlmMessage = Doc<"llmMessages">;
 export type LlmMessageId = Id<"llmMessages">;
 export type LlmMessageRole = "persona" | "agent";
-export type LlmMessageAgreement = "agree" | "disagree" | "neutral";
+// 1–3 = disagree, 4 = neutral, 5–7 = agree (Likert scale)
+export type LlmMessageAgreement = number;
 
 // ── LLM Personas ───────────────────────────────────────────────────────────
 export type LlmPersona = Doc<"llmPersonas">;
