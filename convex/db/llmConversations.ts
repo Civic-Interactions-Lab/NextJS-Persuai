@@ -85,6 +85,20 @@ export const updateTitle = mutation({
     ctx.db.patch(args.id, { title: args.title, updatedAt: Date.now() }),
 });
 
+export const updateTopicRating = mutation({
+  args: {
+    id: v.id("llmConversations"),
+    type: v.union(v.literal("pre"), v.literal("post")),
+    // 1–3 = disagree, 4 = neutral, 5–7 = agree
+    rating: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const field =
+      args.type === "pre" ? "preTopicRating" : "postTopicRating";
+    await ctx.db.patch(args.id, { [field]: args.rating, updatedAt: Date.now() });
+  },
+});
+
 export const remove = mutation({
   args: { id: v.id("llmConversations") },
   handler: async (ctx, args) => ctx.db.delete(args.id),

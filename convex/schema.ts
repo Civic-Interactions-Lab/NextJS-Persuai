@@ -97,9 +97,8 @@ export default defineSchema({
       v.literal("completed"),
       v.literal("error"),
     ),
-    agreement: v.optional(
-      v.union(v.literal("agree"), v.literal("disagree"), v.literal("neutral")),
-    ),
+    // 1–3 = disagree, 4 = neutral, 5–7 = agree (Likert scale)
+    agreement: v.optional(v.number()),
     round: v.number(),
     updatedAt: v.number(),
   }).index("by_llm_conversation", ["llmConversationId"]),
@@ -119,6 +118,9 @@ export default defineSchema({
     ),
     roundCount: v.number(),
     maxRounds: v.number(),
+    // Persona's topic rating before and after conversation (1–7 Likert)
+    preTopicRating: v.optional(v.number()),
+    postTopicRating: v.optional(v.number()),
     metadata: v.optional(v.any()),
     updatedAt: v.number(),
   })

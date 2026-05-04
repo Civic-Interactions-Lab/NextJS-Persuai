@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Sheet,
@@ -92,10 +92,27 @@ const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
 
   // Debate config
   const [topicId, setTopicId] = useState<string>("");
-  const [maxRounds, setMaxRounds] = useState("10");
+  const [maxRounds, setMaxRounds] = useState("30");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  // Reset all fields every time the sheet opens
+  useEffect(() => {
+    if (open) {
+      setPersonaMode(REUSE_NEW);
+      setName("");
+      setBio("");
+      setStance("");
+      setDebateStyle("balanced");
+      setAge("");
+      setOccupation("");
+      setPoliticalLeaning("");
+      setTopicId("");
+      setMaxRounds("30");
+      setError("");
+    }
+  }, [open]);
 
   // Deduplicate personas by name — keep only the most recently created one per name
   const uniquePersonas = existingPersonas
@@ -189,7 +206,7 @@ const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
         title: "New Debate",
         personaId,
         topicId: topicId as TopicId,
-        maxRounds: Math.min(Math.max(Number(maxRounds) || 10, 1), 30),
+        maxRounds: Math.min(Math.max(Number(maxRounds) || 30, 1), 30),
       });
 
       onOpenChange(false);
