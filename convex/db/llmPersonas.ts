@@ -20,16 +20,39 @@ const politicalLeaningValidator = v.union(
 );
 
 const demographicsValidator = v.object({
-  age: v.optional(v.number()),
+  ageRange: v.optional(
+    v.union(
+      v.literal("gen_z"),
+      v.literal("millennial"),
+      v.literal("gen_x"),
+      v.literal("boomer"),
+      v.literal("silent"),
+    ),
+  ),
   occupation: v.optional(v.string()),
   politicalLeaning: v.optional(politicalLeaningValidator),
+  education: v.optional(
+    v.union(
+      v.literal("high_school"),
+      v.literal("some_college"),
+      v.literal("bachelor"),
+      v.literal("graduate"),
+    ),
+  ),
+  religion: v.optional(v.string()),
+  location: v.optional(
+    v.union(
+      v.literal("urban"),
+      v.literal("suburban"),
+      v.literal("rural"),
+    ),
+  ),
 });
 
 export const create = mutation({
   args: {
     name: v.string(),
     bio: v.string(),
-    stance: v.string(),
     debateStyle: debateStyleValidator,
     demographics: demographicsValidator,
     isActive: v.boolean(),
@@ -63,7 +86,6 @@ export const update = mutation({
     id: v.id("llmPersonas"),
     name: v.optional(v.string()),
     bio: v.optional(v.string()),
-    stance: v.optional(v.string()),
     debateStyle: v.optional(debateStyleValidator),
     demographics: v.optional(demographicsValidator),
     isActive: v.optional(v.boolean()),

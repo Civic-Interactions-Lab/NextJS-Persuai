@@ -17,16 +17,18 @@ import {
 } from "@/features/admin/settings/hooks/use-settings";
 import ModelPlaygroundSheet from "@/features/admin/settings/components/model-playground-sheet";
 
-const PROVIDERS = ["groq", "openai", "google"] as const;
+const PROVIDERS = ["openrouter"] as const;
 
 const MODELS: Record<string, string[]> = {
-  groq: [
-    "llama-3.1-8b-instant",
-    "llama-3.1-70b-versatile",
-    "mixtral-8x7b-32768",
+  openrouter: [
+    "openai/gpt-4o",
+    "openai/gpt-4o-mini",
+    "openai/gpt-4.1",
+    "openai/gpt-4.1-mini",
+    "openai/o4-mini",
+    "google/gemini-2.5-flash",
+    "anthropic/claude-sonnet-4-5",
   ],
-  openai: ["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"],
-  google: ["gemini-2.5-flash", "gemini-1.5-pro"],
 };
 
 const LlmSettingsSection = () => {
@@ -39,8 +41,8 @@ const LlmSettingsSection = () => {
   const [saving, setSaving] = useState(false);
   const [playgroundOpen, setPlaygroundOpen] = useState(false);
 
-  const currentProvider = providerSetting?.value ?? "groq";
-  const currentModel = modelSetting?.value ?? "llama3-8b-8192";
+  const currentProvider = providerSetting?.value ?? "openrouter";
+  const currentModel = modelSetting?.value ?? "google/gemini-2.5-flash";
 
   const activeProvider = provider || currentProvider;
   const activeModel = model || currentModel;

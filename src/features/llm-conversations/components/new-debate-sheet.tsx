@@ -22,12 +22,15 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useGetTopics } from "@/features/admin/settings/hooks/use-topics";
+import { useGetAgents } from "@/features/admin/settings/hooks/use-agents";
 import {
   useGetLlmPersonas,
   useCreateLlmPersona,
 } from "@/features/llm-conversations/hooks/use-llm-personas";
 import { useCreateLlmConversation } from "@/features/llm-conversations/hooks/use-llm-conversations";
-import { TopicId, LlmPersonaId } from "../../../../convex/types/convexTypes";
+import { TopicId, AgentId, LlmPersonaId } from "../../../../convex/types/convexTypes";
+
+// ── Option lists ─────────────────────────────────────────────────────────────
 
 const DEBATE_STYLES = [
   { value: "logical", label: "Logical" },
@@ -35,6 +38,14 @@ const DEBATE_STYLES = [
   { value: "aggressive", label: "Aggressive" },
   { value: "cautious", label: "Cautious" },
   { value: "balanced", label: "Balanced" },
+] as const;
+
+const AGE_RANGES = [
+  { value: "gen_z", label: "Gen Z (born 1997–2012)" },
+  { value: "millennial", label: "Millennial (born 1981–1996)" },
+  { value: "gen_x", label: "Gen X (born 1965–1980)" },
+  { value: "boomer", label: "Baby Boomer (born 1946–1964)" },
+  { value: "silent", label: "Silent Generation (born 1928–1945)" },
 ] as const;
 
 const POLITICAL_LEANINGS = [
@@ -47,74 +58,99 @@ const POLITICAL_LEANINGS = [
   { value: "far_right", label: "Far Right" },
 ] as const;
 
+const EDUCATION_LEVELS = [
+  { value: "high_school", label: "High School Diploma" },
+  { value: "some_college", label: "Some College" },
+  { value: "bachelor", label: "Bachelor's Degree" },
+  { value: "graduate", label: "Graduate Degree" },
+] as const;
+
+const LOCATIONS = [
+  { value: "urban", label: "Urban" },
+  { value: "suburban", label: "Suburban" },
+  { value: "rural", label: "Rural" },
+] as const;
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type DebateStyle = "logical" | "emotional" | "aggressive" | "cautious" | "balanced";
+type PoliticalLeaning = "far_left" | "left" | "center_left" | "center" | "center_right" | "right" | "far_right";
+type AgeRange = "gen_z" | "millennial" | "gen_x" | "boomer" | "silent";
+type Education = "high_school" | "some_college" | "bachelor" | "graduate";
+type Location = "urban" | "suburban" | "rural";
+
 interface NewDebateSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-type DebateStyle =
-  | "logical"
-  | "emotional"
-  | "aggressive"
-  | "cautious"
-  | "balanced";
-type PoliticalLeaning =
-  | "far_left"
-  | "left"
-  | "center_left"
-  | "center"
-  | "center_right"
-  | "right"
-  | "far_right";
-
 const REUSE_NEW = "__new__";
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
   const router = useRouter();
   const topics = useGetTopics();
+  const agents = useGetAgents();
   const existingPersonas = useGetLlmPersonas();
   const createPersona = useCreateLlmPersona();
   const createConversation = useCreateLlmConversation();
 
-  // "reuse" mode — either REUSE_NEW or an existing persona _id
+  // Persona mode — REUSE_NEW or an existing persona _id
   const [personaMode, setPersonaMode] = useState<string>(REUSE_NEW);
 
-  // Persona fields (used when creating new)
+  // Persona fields
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
-  const [stance, setStance] = useState("");
   const [debateStyle, setDebateStyle] = useState<DebateStyle>("balanced");
-  const [age, setAge] = useState("");
+
+  // Demographics
+  const [ageRange, setAgeRange] = useState<AgeRange | "">("");
   const [occupation, setOccupation] = useState("");
-  const [politicalLeaning, setPoliticalLeaning] = useState<
-    PoliticalLeaning | ""
-  >("");
+  const [politicalLeaning, setPoliticalLeaning] = useState<PoliticalLeaning | "">("");
+  const [education, setEducation] = useState<Education | "">("");
+  const [religion, setReligion] = useState("");
+  const [location, setLocation] = useState<Location | "">("");
 
   // Debate config
   const [topicId, setTopicId] = useState<string>("");
+  const [agentId, setAgentId] = useState<string>("");
   const [maxRounds, setMaxRounds] = useState("30");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // Reset all fields every time the sheet opens
+  const isReusingExisting = personaMode !== REUSE_NEW;
+
+  // Auto-select first agent when list loads
+  useEffect(() => {
+    if (agents && agents.length > 0 && !agentId) {
+      setAgentId(agents[0]._id);
+    }
+  }, [agents, agentId]);
+
+  // Reset all fields when sheet opens
   useEffect(() => {
     if (open) {
       setPersonaMode(REUSE_NEW);
       setName("");
       setBio("");
-      setStance("");
       setDebateStyle("balanced");
-      setAge("");
+      setAgeRange("");
       setOccupation("");
       setPoliticalLeaning("");
+      setEducation("");
+      setReligion("");
+      setLocation("");
       setTopicId("");
       setMaxRounds("30");
       setError("");
+      // Re-select first agent
+      if (agents && agents.length > 0) setAgentId(agents[0]._id);
     }
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Deduplicate personas by name — keep only the most recently created one per name
+  // Deduplicate personas by name — keep only the most recently created per name
   const uniquePersonas = existingPersonas
     ? Object.values(
         existingPersonas.reduce<Record<string, (typeof existingPersonas)[0]>>(
@@ -129,14 +165,6 @@ const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
       )
     : [];
 
-  const isNewPersona = personaMode === REUSE_NEW;
-  const isValid =
-    topicId &&
-    (isNewPersona
-      ? name.trim() && bio.trim() && stance.trim()
-      : personaMode !== REUSE_NEW);
-
-  // When user picks an existing persona, pre-fill the fields so they can review/edit
   const handlePersonaModeChange = (value: string) => {
     setPersonaMode(value);
     if (value !== REUSE_NEW) {
@@ -144,25 +172,31 @@ const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
       if (p) {
         setName(p.name);
         setBio(p.bio);
-        setStance(p.stance);
         setDebateStyle(p.debateStyle as DebateStyle);
-        setAge(p.demographics.age ? String(p.demographics.age) : "");
+        setAgeRange((p.demographics.ageRange as AgeRange) ?? "");
         setOccupation(p.demographics.occupation ?? "");
-        setPoliticalLeaning(
-          (p.demographics.politicalLeaning as PoliticalLeaning) ?? "",
-        );
+        setPoliticalLeaning((p.demographics.politicalLeaning as PoliticalLeaning) ?? "");
+        setEducation((p.demographics.education as Education) ?? "");
+        setReligion((p.demographics.religion as string) ?? "");
+        setLocation((p.demographics.location as Location) ?? "");
       }
     } else {
-      // reset fields for new persona
       setName("");
       setBio("");
-      setStance("");
       setDebateStyle("balanced");
-      setAge("");
+      setAgeRange("");
       setOccupation("");
       setPoliticalLeaning("");
+      setEducation("");
+      setReligion("");
+      setLocation("");
     }
   };
+
+  const isValid =
+    topicId &&
+    agentId &&
+    (isReusingExisting ? true : name.trim() && bio.trim());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,30 +207,21 @@ const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
     try {
       let personaId: LlmPersonaId;
 
-      if (!isNewPersona) {
-        // Reuse existing — but save updated fields back as a new persona copy
-        personaId = await createPersona({
-          name: name.trim(),
-          bio: bio.trim(),
-          stance: stance.trim(),
-          debateStyle,
-          demographics: {
-            age: age ? Number(age) : undefined,
-            occupation: occupation.trim() || undefined,
-            politicalLeaning: politicalLeaning || undefined,
-          },
-          isActive: true,
-        });
+      if (isReusingExisting) {
+        // Reuse the existing persona directly — no new DB record
+        personaId = personaMode as LlmPersonaId;
       } else {
         personaId = await createPersona({
           name: name.trim(),
           bio: bio.trim(),
-          stance: stance.trim(),
           debateStyle,
           demographics: {
-            age: age ? Number(age) : undefined,
+            ageRange: ageRange || undefined,
             occupation: occupation.trim() || undefined,
             politicalLeaning: politicalLeaning || undefined,
+            education: education || undefined,
+            religion: religion.trim() || undefined,
+            location: location || undefined,
           },
           isActive: true,
         });
@@ -205,6 +230,7 @@ const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
       const conversationId = await createConversation({
         title: "New Debate",
         personaId,
+        agentId: agentId as AgentId,
         topicId: topicId as TopicId,
         maxRounds: Math.min(Math.max(Number(maxRounds) || 30, 1), 30),
       });
@@ -225,8 +251,7 @@ const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
         <SheetHeader className="px-6 pt-6 pb-4 shrink-0">
           <SheetTitle>New LLM Debate</SheetTitle>
           <SheetDescription>
-            Set up a persona and pick a topic. An agent will be assigned
-            randomly.
+            Configure a persona, pick an agent, and choose a topic.
           </SheetDescription>
         </SheetHeader>
 
@@ -240,20 +265,14 @@ const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
               Persona
             </p>
 
-            {/* Reuse dropdown */}
             <div className="space-y-1.5">
               <Label>Use existing persona</Label>
-              <Select
-                value={personaMode}
-                onValueChange={handlePersonaModeChange}
-              >
+              <Select value={personaMode} onValueChange={handlePersonaModeChange}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Create new persona..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={REUSE_NEW}>
-                    + Create new persona
-                  </SelectItem>
+                  <SelectItem value={REUSE_NEW}>+ Create new persona</SelectItem>
                   {uniquePersonas.length > 0 && (
                     <>
                       <Separator className="my-1" />
@@ -266,10 +285,9 @@ const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
                   )}
                 </SelectContent>
               </Select>
-              {!isNewPersona && (
+              {isReusingExisting && (
                 <p className="text-xs text-muted-foreground">
-                  Fields pre-filled from this persona — you can edit before
-                  starting.
+                  Reusing saved persona — fields are read-only.
                 </p>
               )}
             </div>
@@ -281,6 +299,7 @@ const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
                 placeholder="e.g. Alex Johnson"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                disabled={isReusingExisting}
                 required
               />
             </div>
@@ -293,27 +312,18 @@ const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 rows={3}
+                disabled={isReusingExisting}
                 required
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="stance">Initial Stance *</Label>
-              <Textarea
-                id="stance"
-                placeholder="How does this person feel about the debate topic?"
-                value={stance}
-                onChange={(e) => setStance(e.target.value)}
-                rows={2}
-                required
-              />
-            </div>
 
             <div className="space-y-1.5">
               <Label>Debate Style</Label>
               <Select
                 value={debateStyle}
                 onValueChange={(v) => setDebateStyle(v as DebateStyle)}
+                disabled={isReusingExisting}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -339,17 +349,25 @@ const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="age">Age</Label>
-                <Input
-                  id="age"
-                  type="number"
-                  min={18}
-                  max={100}
-                  placeholder="e.g. 42"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                />
+                <Label>Generation</Label>
+                <Select
+                  value={ageRange}
+                  onValueChange={(v) => setAgeRange(v as AgeRange)}
+                  disabled={isReusingExisting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AGE_RANGES.map((a) => (
+                      <SelectItem key={a.value} value={a.value}>
+                        {a.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+
               <div className="space-y-1.5">
                 <Label htmlFor="occupation">Occupation</Label>
                 <Input
@@ -357,29 +375,84 @@ const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
                   placeholder="e.g. Teacher"
                   value={occupation}
                   onChange={(e) => setOccupation(e.target.value)}
+                  disabled={isReusingExisting}
                 />
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label>Political Leaning</Label>
-              <Select
-                value={politicalLeaning}
-                onValueChange={(v) =>
-                  setPoliticalLeaning(v as PoliticalLeaning)
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select leaning (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {POLITICAL_LEANINGS.map((p) => (
-                    <SelectItem key={p.value} value={p.value}>
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Political Leaning</Label>
+                <Select
+                  value={politicalLeaning}
+                  onValueChange={(v) => setPoliticalLeaning(v as PoliticalLeaning)}
+                  disabled={isReusingExisting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {POLITICAL_LEANINGS.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Education</Label>
+                <Select
+                  value={education}
+                  onValueChange={(v) => setEducation(v as Education)}
+                  disabled={isReusingExisting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EDUCATION_LEVELS.map((e) => (
+                      <SelectItem key={e.value} value={e.value}>
+                        {e.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="religion">Religion</Label>
+                <Input
+                  id="religion"
+                  placeholder="e.g. Catholic, Atheist"
+                  value={religion}
+                  onChange={(e) => setReligion(e.target.value)}
+                  disabled={isReusingExisting}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Location Type</Label>
+                <Select
+                  value={location}
+                  onValueChange={(v) => setLocation(v as Location)}
+                  disabled={isReusingExisting}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LOCATIONS.map((l) => (
+                      <SelectItem key={l.value} value={l.value}>
+                        {l.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -399,17 +472,35 @@ const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
                 </SelectTrigger>
                 <SelectContent>
                   {topics === undefined ? (
-                    <SelectItem value="loading" disabled>
-                      Loading...
-                    </SelectItem>
+                    <SelectItem value="loading" disabled>Loading...</SelectItem>
                   ) : topics.length === 0 ? (
-                    <SelectItem value="none" disabled>
-                      No topics — add them in admin dashboard
-                    </SelectItem>
+                    <SelectItem value="none" disabled>No topics — add them in admin dashboard</SelectItem>
                   ) : (
                     topics.map((t) => (
                       <SelectItem key={t._id} value={t._id}>
                         {t.issue}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Agent *</Label>
+              <Select value={agentId} onValueChange={setAgentId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select an agent..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {agents === undefined ? (
+                    <SelectItem value="loading" disabled>Loading...</SelectItem>
+                  ) : agents.length === 0 ? (
+                    <SelectItem value="none" disabled>No agents — add them in admin settings</SelectItem>
+                  ) : (
+                    agents.map((a) => (
+                      <SelectItem key={a._id} value={a._id}>
+                        {a.name}
                       </SelectItem>
                     ))
                   )}
@@ -427,10 +518,6 @@ const NewDebateSheet = ({ open, onOpenChange }: NewDebateSheetProps) => {
                 value={maxRounds}
                 onChange={(e) => setMaxRounds(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">
-                Each round = one persona message + one agent response. Agent
-                assigned randomly at start.
-              </p>
             </div>
           </div>
 

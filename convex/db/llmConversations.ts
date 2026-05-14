@@ -12,29 +12,28 @@ export const create = mutation({
   args: {
     title: v.string(),
     personaId: v.id("llmPersonas"),
+    agentId: v.id("agents"),
     topicId: v.id("topics"),
     maxRounds: v.number(),
   },
   handler: async (ctx, args) => {
-    // Randomly assign an agent
-    const agents = await ctx.db.query("agents").collect();
-    if (agents.length === 0) throw new Error("No agents available");
-    const randomAgent = agents[Math.floor(Math.random() * agents.length)];
-
-    const [persona, topic] = await Promise.all([
+    const [persona, agent, topic] = await Promise.all([
       ctx.db.get(args.personaId),
+      ctx.db.get(args.agentId),
       ctx.db.get(args.topicId),
     ]);
+
+    if (!agent) throw new Error("Agent not found");
 
     return ctx.db.insert("llmConversations", {
       title: args.title,
       personaId: args.personaId,
-      agentId: randomAgent._id,
+      agentId: args.agentId,
       topicId: args.topicId,
       status: "idle",
       roundCount: 0,
       maxRounds: args.maxRounds,
-      metadata: { persona, agent: randomAgent, topic },
+      metadata: { persona: { ...persona, stance: "" }, agent, topic },
       updatedAt: Date.now(),
     });
   },
@@ -89,17 +88,27 @@ export const updateTopicRating = mutation({
   args: {
     id: v.id("llmConversations"),
     type: v.union(v.literal("pre"), v.literal("post")),
-    // 1–3 = disagree, 4 = neutral, 5–7 = agree
     rating: v.number(),
   },
   handler: async (ctx, args) => {
-    const field =
-      args.type === "pre" ? "preTopicRating" : "postTopicRating";
-    await ctx.db.patch(args.id, { [field]: args.rating, updatedAt: Date.now() });
+    const field = args.type === "pre" ? "preTopicRating" : "postTopicRating";
+    await ctx.db.patch(args.id, {
+      [field]: args.rating,
+      updatedAt: Date.now(),
+    });
   },
 });
 
 export const remove = mutation({
   args: { id: v.id("llmConversations") },
-  handler: async (ctx, args) => ctx.db.delete(args.id),
+  handler: async (ctx, args) => {
+    const messages = await ctx.db
+      .query("llmMessages")
+      .withIndex("by_llm_conversation", (q) =>
+        q.eq("llmConversationId", args.id),
+      )
+      .collect();
+    await Promise.all(messages.map((m) => ctx.db.delete(m._id)));
+    await ctx.db.delete(args.id);
+  },
 });

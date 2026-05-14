@@ -7,6 +7,7 @@ import {
   BarChart3Icon,
   SettingsIcon,
   LogOutIcon,
+  ChevronRightIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -21,15 +22,17 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import Logo from "@/components/logo";
 import { logout } from "@/features/admin/actions/logout";
-
-const NAV_ITEMS = [
-  { label: "Overview", href: "/dashboard", icon: LayoutDashboardIcon },
-  { label: "Analytics", href: "/analytics", icon: BarChart3Icon },
-  { label: "Settings", href: "/settings", icon: SettingsIcon },
-];
 
 const AdminSidebar = () => {
   const pathname = usePathname();
@@ -42,6 +45,8 @@ const AdminSidebar = () => {
   const handleSignOut = async () => {
     await logout();
   };
+
+  const isAnalyticsActive = pathname.startsWith("/analytics");
 
   return (
     <Sidebar collapsible="icon">
@@ -59,21 +64,76 @@ const AdminSidebar = () => {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV_ITEMS.map(({ label, href, icon: Icon }) => (
-                <SidebarMenuItem key={href}>
-                  <SidebarMenuButton
-                    asChild
-                    tooltip={label}
-                    isActive={pathname === href}
-                    className="gap-x-4"
-                  >
-                    <Link href={href} prefetch>
-                      <Icon className="size-4" />
-                      <span>{label}</span>
-                    </Link>
-                  </SidebarMenuButton>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  tooltip="Overview"
+                  isActive={pathname === "/dashboard"}
+                  className="gap-x-4"
+                >
+                  <Link href="/dashboard" prefetch>
+                    <LayoutDashboardIcon className="size-4" />
+                    <span>Overview</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <Collapsible
+                defaultOpen={isAnalyticsActive}
+                className="group/collapsible"
+              >
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton
+                      tooltip="Analytics"
+                      isActive={isAnalyticsActive}
+                      className="gap-x-4"
+                    >
+                      <BarChart3Icon className="size-4" />
+                      <span>Analytics</span>
+                      <ChevronRightIcon className="ml-auto size-3.5 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={pathname === "/analytics/human"}
+                        >
+                          <Link href="/analytics/human" prefetch>
+                            Human vs. Agent
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={pathname === "/analytics/llm"}
+                        >
+                          <Link href="/analytics/llm" prefetch>
+                            LLM vs. LLM
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
                 </SidebarMenuItem>
-              ))}
+              </Collapsible>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  tooltip="Settings"
+                  isActive={pathname === "/settings"}
+                  className="gap-x-4"
+                >
+                  <Link href="/settings" prefetch>
+                    <SettingsIcon className="size-4" />
+                    <span>Settings</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

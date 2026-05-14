@@ -78,24 +78,16 @@ const LlmConversationView = ({ conversationId }: LlmConversationViewProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation?._id, messages?.length]);
 
-  const callTurn = async (
-    turn: "persona" | "agent",
-  ): Promise<{ done: boolean; retryAfterMs?: number }> => {
+  const callTurn = async (turn: "persona" | "agent"): Promise<boolean> => {
     const res = await fetch("/api/llm-debate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ llmConversationId: conversationId, turn }),
     });
 
-    if (res.status === 429) {
-      const retryAfter = res.headers.get("retry-after");
-      const waitMs = retryAfter ? Number(retryAfter) * 1000 + 500 : 8000;
-      return { done: false, retryAfterMs: waitMs };
-    }
-
-    if (!res.ok) throw new Error("API error");
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
     const data = await res.json();
-    return { done: data.done === true };
+    return data.done === true;
   };
 
   const startDebate = async () => {
@@ -107,28 +99,13 @@ const LlmConversationView = ({ conversationId }: LlmConversationViewProps) => {
     try {
       let done = false;
       while (!done && !abortRef.current) {
-        // ── Persona turn ──
-        let personaResult = await callTurn("persona");
-        while (personaResult.retryAfterMs) {
-          await new Promise((r) => setTimeout(r, personaResult.retryAfterMs));
-          personaResult = await callTurn("persona");
-        }
+        await callTurn("persona");
         if (abortRef.current) break;
 
-        // Small gap so the UI shows the persona bubble before agent starts thinking
+        // Small gap so the UI shows the persona bubble before agent starts
         await new Promise((r) => setTimeout(r, 800));
 
-        // ── Agent turn ──
-        let agentResult = await callTurn("agent");
-        while (agentResult.retryAfterMs) {
-          await new Promise((r) => setTimeout(r, agentResult.retryAfterMs));
-          agentResult = await callTurn("agent");
-        }
-
-        done = agentResult.done;
-        // Pause between rounds to stay within TPM limits
-        if (!done && !abortRef.current)
-          await new Promise((r) => setTimeout(r, 2000));
+        done = await callTurn("agent");
       }
     } catch (err) {
       setRunError("Something went wrong. You can try resuming.");
@@ -232,19 +209,17 @@ const LlmConversationView = ({ conversationId }: LlmConversationViewProps) => {
           <span className="opacity-60">— Agent</span>
         </span>
 
-        {/* Pre-topic rating pill (shown as soon as it exists) */}
-        {conversation?.preTopicRating !== undefined && (
-          <span
-            className={cn(
-              "text-[10px] font-medium px-2 py-0.5 rounded-full",
-              getAgreementBadgeStyle(conversation.preTopicRating),
-            )}
-          >
-            Pre: {conversation.preTopicRating}/7 · {likertLabel(conversation.preTopicRating)}
-          </span>
-        )}
-
         <span className="flex items-center gap-1.5">
+          {conversation?.preTopicRating !== undefined && (
+            <span
+              className={cn(
+                "text-[10px] font-medium px-2 py-0.5 rounded-full",
+                getAgreementBadgeStyle(conversation.preTopicRating),
+              )}
+            >
+              Pre: {conversation.preTopicRating}/7 · {likertLabel(conversation.preTopicRating)}
+            </span>
+          )}
           <span className="opacity-60">Persona —</span>
           <span className="font-medium">{personaName}</span>
           <UserIcon className="size-3" />
