@@ -177,20 +177,19 @@ Reply with ONLY a single digit from 1 to 7. Nothing else.`,
         }
 
         if (currentRound === 2 && conversation.title === "New Debate") {
-          chat("google/gemini-2.5-flash", [
-            { role: "system", content: TITLE_GENERATION_PROMPT },
-            {
-              role: "user",
-              content: `Topic: ${metadata.topic.issue}\n\nFirst response: ${personaText.trim()}`,
-            },
-          ])
-            .then((title) =>
-              convex.mutation(api.db.llmConversations.updateTitle, {
-                id: llmConversationId as LlmConversationId,
-                title: title.trim(),
-              }),
-            )
-            .catch(() => {});
+          try {
+            const title = await chat("google/gemini-2.5-flash", [
+              { role: "system", content: TITLE_GENERATION_PROMPT },
+              {
+                role: "user",
+                content: `Topic: ${metadata.topic.issue}\n\nFirst response: ${personaText.trim()}`,
+              },
+            ]);
+            await convex.mutation(api.db.llmConversations.updateTitle, {
+              id: llmConversationId as LlmConversationId,
+              title: title.trim(),
+            });
+          } catch {}
         }
 
         return NextResponse.json({ done: false, turn: "persona" });
@@ -283,10 +282,11 @@ State your opening position on this topic in 2–3 sentences. Be clear and direc
           .map((m) => `${m.role === "persona" ? metadata.persona.name : metadata.agent.name}: ${m.content}`)
           .join("\n\n");
 
-        chat(model, [
-          {
-            role: "user",
-            content: `You are ${metadata.persona.name}. You just finished a debate on the following topic.
+        try {
+          const ratingText = await chat(model, [
+            {
+              role: "user",
+              content: `You are ${metadata.persona.name}. You just finished a debate on the following topic.
 
 Your background: ${metadata.persona.bio}
 Topic: "${metadata.topic.issue}"
@@ -300,17 +300,15 @@ Your rating must reflect genuine reconsideration — if the arguments were weak 
 
 Respond with ONLY this format (nothing else): TOPIC_RATING: N
 where N is your rating from 1 to 7.`,
-          },
-        ])
-          .then((ratingText) => {
-            const postRating = parseTopicRating(ratingText.trim()) ?? 4;
-            return convex.mutation(api.db.llmConversations.updateTopicRating, {
-              id: llmConversationId as LlmConversationId,
-              type: "post",
-              rating: postRating,
-            });
-          })
-          .catch(() => {});
+            },
+          ]);
+          const postRating = parseTopicRating(ratingText.trim()) ?? 4;
+          await convex.mutation(api.db.llmConversations.updateTopicRating, {
+            id: llmConversationId as LlmConversationId,
+            type: "post",
+            rating: postRating,
+          });
+        } catch {}
       }
 
       return NextResponse.json({
