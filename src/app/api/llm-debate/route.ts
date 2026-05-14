@@ -279,13 +279,24 @@ State your opening position on this topic in 2–3 sentences. Be clear and direc
       const isDone = updated?.status === "completed" || updated?.status === "error";
 
       if (isDone && updated?.status === "completed") {
+        const transcript = completedMessages
+          .map((m) => `${m.role === "persona" ? metadata.persona.name : metadata.agent.name}: ${m.content}`)
+          .join("\n\n");
+
         chat(model, [
           {
             role: "user",
-            content: `You are ${metadata.persona.name}. The debate on the following topic has just concluded. Based on your background and everything you heard, rate how much you personally agree with the topic statement on a scale of 1 to 7, where 1 = strongly disagree, 4 = neutral, 7 = strongly agree.
+            content: `You are ${metadata.persona.name}. You just finished a debate on the following topic.
 
-Background: ${metadata.persona.bio}
+Your background: ${metadata.persona.bio}
 Topic: "${metadata.topic.issue}"
+
+Here is the full debate transcript:
+${transcript}
+
+Now that the debate is over, reflect honestly: did any of the arguments you heard actually shift your thinking, even slightly? Or did they reinforce your original view? Rate how much you personally agree with the topic statement now on a scale of 1 to 7, where 1 = strongly disagree, 4 = neutral, 7 = strongly agree.
+
+Your rating must reflect genuine reconsideration — if the arguments were weak or didn't challenge your core beliefs, your rating should stay close to where you started. If something genuinely landed, adjust accordingly.
 
 Respond with ONLY this format (nothing else): TOPIC_RATING: N
 where N is your rating from 1 to 7.`,

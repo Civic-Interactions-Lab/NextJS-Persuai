@@ -21,7 +21,7 @@ const LlmConversationsView = () => {
         <div className="text-center space-y-4 max-w-sm px-4">
           <BotMessageSquare className="size-12 mx-auto text-muted-foreground opacity-40" />
           <div className="space-y-1">
-            <h2 className="text-lg font-semibold">LLM vs LLM Debates</h2>
+            <h2 className="text-lg font-semibold">LLM vs. LLM Debates</h2>
             <p className="text-sm text-muted-foreground">
               Create an LLM persona and watch it debate one of your agents for
               up to 30 rounds.

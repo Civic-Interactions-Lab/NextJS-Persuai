@@ -1,8 +1,9 @@
 "use client";
 
-import { useGetConversations } from "@/features/conversation/hooks/use-conversations";
 import { MessageSquare, Calendar } from "lucide-react";
 import { useMemo } from "react";
+import { Conversation, LlmConversation } from "../../../../../convex/types/convexTypes";
+import { ConversationFilter } from "../views/dashboard-view";
 
 function getWeekRange(weeksAgo: number): { start: Date; end: Date } {
   const now = new Date();
@@ -23,49 +24,47 @@ function getWeekRange(weeksAgo: number): { start: Date; end: Date } {
   return { start, end };
 }
 
-export const TotalConversationsCard = () => {
-  const conversations = useGetConversations();
-  const total = conversations?.length ?? 0;
+interface StatsProps {
+  conversations: Conversation[];
+  llmConversations: LlmConversation[];
+  filter: ConversationFilter;
+}
+
+function getFiltered(conversations: Conversation[], llmConversations: LlmConversation[], filter: ConversationFilter) {
+  const human = filter === "all" || filter === "human" ? conversations : [];
+  const llm = filter === "all" || filter === "llm" ? llmConversations : [];
+  return [...human, ...llm];
+}
+
+export const TotalConversationsCard = ({ conversations, llmConversations, filter }: StatsProps) => {
+  const total = getFiltered(conversations, llmConversations, filter).length;
 
   return (
     <div className="rounded-lg border bg-card p-6 relative">
       <MessageSquare className="size-6 text-muted-foreground/30 absolute top-6 right-6" />
-      <h3 className="text-sm font-medium text-muted-foreground">
-        Total Conversations
-      </h3>
+      <h3 className="text-sm font-medium text-muted-foreground">Total Conversations</h3>
       <p className="text-3xl font-bold mt-2">{total}</p>
     </div>
   );
 };
 
-export const WeeklyTrendingCard = () => {
-  const conversations = useGetConversations();
-
+export const WeeklyTrendingCard = ({ conversations, llmConversations, filter }: StatsProps) => {
   const { thisWeekCount, lastWeekCount, diff } = useMemo(() => {
-    if (!conversations) return { thisWeekCount: 0, lastWeekCount: 0, diff: 0 };
-
+    const all = getFiltered(conversations, llmConversations, filter);
     const thisWeek = getWeekRange(0);
     const lastWeek = getWeekRange(1);
 
     let thisWeekCount = 0;
     let lastWeekCount = 0;
 
-    conversations.forEach((conv) => {
+    all.forEach((conv) => {
       const date = new Date(conv._creationTime);
-
-      if (date >= thisWeek.start && date <= thisWeek.end) {
-        thisWeekCount++;
-      } else if (date >= lastWeek.start && date <= lastWeek.end) {
-        lastWeekCount++;
-      }
+      if (date >= thisWeek.start && date <= thisWeek.end) thisWeekCount++;
+      else if (date >= lastWeek.start && date <= lastWeek.end) lastWeekCount++;
     });
 
-    return {
-      thisWeekCount,
-      lastWeekCount,
-      diff: thisWeekCount - lastWeekCount,
-    };
-  }, [conversations]);
+    return { thisWeekCount, lastWeekCount, diff: thisWeekCount - lastWeekCount };
+  }, [conversations, llmConversations, filter]);
 
   return (
     <div className="rounded-lg border bg-card p-6 relative">
@@ -73,8 +72,7 @@ export const WeeklyTrendingCard = () => {
       <h3 className="text-sm font-medium text-muted-foreground">This Week</h3>
       <p className="text-3xl font-bold mt-2">{thisWeekCount}</p>
       <p className="text-xs text-muted-foreground mt-1">
-        {diff > 0 ? "+" : ""}
-        {diff} vs last week ({lastWeekCount})
+        {diff > 0 ? "+" : ""}{diff} vs last week ({lastWeekCount})
       </p>
     </div>
   );

@@ -1,6 +1,5 @@
-import React from "react";
-import AnalyticsView from "@/features/admin/analytics/views/analytics-view";
+import { redirect } from "next/navigation";
 
 export default function AnalyticsPage() {
-  return <AnalyticsView />;
+  redirect("/analytics/human");
 }
