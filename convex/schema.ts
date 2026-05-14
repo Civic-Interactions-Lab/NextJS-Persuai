@@ -132,7 +132,6 @@ export default defineSchema({
   llmPersonas: defineTable({
     name: v.string(),
     bio: v.string(),
-    stance: v.string(),
     debateStyle: v.union(
       v.literal("logical"),
       v.literal("emotional"),
@@ -141,7 +140,15 @@ export default defineSchema({
       v.literal("balanced"),
     ),
     demographics: v.object({
-      age: v.optional(v.number()),
+      ageRange: v.optional(
+        v.union(
+          v.literal("gen_z"),
+          v.literal("millennial"),
+          v.literal("gen_x"),
+          v.literal("boomer"),
+          v.literal("silent"),
+        ),
+      ),
       occupation: v.optional(v.string()),
       politicalLeaning: v.optional(
         v.union(
@@ -152,6 +159,22 @@ export default defineSchema({
           v.literal("center_right"),
           v.literal("right"),
           v.literal("far_right"),
+        ),
+      ),
+      education: v.optional(
+        v.union(
+          v.literal("high_school"),
+          v.literal("some_college"),
+          v.literal("bachelor"),
+          v.literal("graduate"),
+        ),
+      ),
+      religion: v.optional(v.string()),
+      location: v.optional(
+        v.union(
+          v.literal("urban"),
+          v.literal("suburban"),
+          v.literal("rural"),
         ),
       ),
     }),

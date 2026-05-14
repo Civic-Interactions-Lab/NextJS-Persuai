@@ -72,6 +72,9 @@ export type PoliticalLeaning =
   | "center_right"
   | "right"
   | "far_right";
+export type AgeRange = "gen_z" | "millennial" | "gen_x" | "boomer" | "silent";
+export type Education = "high_school" | "some_college" | "bachelor" | "graduate";
+export type PersonaLocation = "urban" | "suburban" | "rural";
 
 // ── Conversation Metadata ──────────────────────────────────────────────────
 export type ConversationMetadata = {
